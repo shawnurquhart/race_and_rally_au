@@ -93,8 +93,8 @@ const Footer: React.FC = () => {
                 <p>Melbourne, VIC 3000</p>
                 <p>Australia</p>
                 <p className="mt-4">
-                  <a href="mailto:info@raceandrally.au" className="hover:text-motorsport-yellow">
-                    info@raceandrally.au
+                  <a href="mailto:sales@raceandrallyaustralia.com.au" className="hover:text-motorsport-yellow">
+                    sales@raceandrallyaustralia.com.au
                   </a>
                 </p>
                 <p>
