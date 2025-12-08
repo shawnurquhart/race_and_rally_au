@@ -1,0 +1,74 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Montserrat:wght@400;500;600;700;800&display=swap');
+
+@import 'tailwindcss';
+
+@theme {
+  --color-motorsport-yellow: #FFD700;
+  --color-motorsport-yellow-dark: #FFC107;
+  --font-sans: 'Inter', system-ui, sans-serif;
+  --font-heading: 'Montserrat', system-ui, sans-serif;
+}
+
+@layer base {
+  :root {
+    color-scheme: dark;
+  }
+
+  body {
+    background-color: black;
+    color: white;
+    font-family: var(--font-sans);
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-heading);
+    font-weight: bold;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    background-color: var(--color-motorsport-yellow);
+    color: black;
+    font-weight: 600;
+    padding: 0.75rem 1.5rem;
+    border-radius: 0;
+    transition: background-color 0.2s;
+  }
+
+  .btn-primary:hover {
+    background-color: var(--color-motorsport-yellow-dark);
+  }
+
+  .btn-secondary {
+    border: 2px solid white;
+    color: white;
+    font-weight: 600;
+    padding: 0.75rem 1.5rem;
+    border-radius: 0;
+    transition: all 0.2s;
+  }
+
+  .btn-secondary:hover {
+    background-color: white;
+    color: black;
+  }
+
+  .section-padding {
+    padding-top: 4rem;
+    padding-bottom: 4rem;
+  }
+
+  @media (min-width: 768px) {
+    .section-padding {
+      padding-top: 6rem;
+      padding-bottom: 6rem;
+    }
+  }
+
+  .container-narrow {
+    max-width: 72rem;
+    margin-left: auto;
+    margin-right: auto;
+  }
+}
