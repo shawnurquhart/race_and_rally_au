@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { ChevronRight, CheckCircle, Shield, Award, Globe } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
 const HomePage: React.FC = () => {
   const heroRef = useRef<HTMLDivElement>(null);
@@ -53,15 +54,15 @@ const HomePage: React.FC = () => {
                 off-road enthusiasts, and motorsport teams who demand the best.
               </p>
               <div className="flex flex-col sm:flex-row gap-4">
-                <a href="/gear" className="btn-primary inline-flex items-center justify-center">
+                <Link to="/gear" className="btn-primary inline-flex items-center justify-center">
                   View Gear <ChevronRight className="ml-2" size={20} />
-                </a>
-                <a href="/brands" className="btn-secondary inline-flex items-center justify-center">
+                </Link>
+                <Link to="/brands" className="btn-secondary inline-flex items-center justify-center">
                   Explore Brands
-                </a>
-                <a href="/events" className="btn-secondary inline-flex items-center justify-center">
+                </Link>
+                <Link to="/events" className="btn-secondary inline-flex items-center justify-center">
                   Upcoming Events
-                </a>
+                </Link>
               </div>
             </div>
           </div>
@@ -256,9 +257,9 @@ const HomePage: React.FC = () => {
                   </div>
                 ))}
               </div>
-              <a href="/brands/piaa" className="btn-primary inline-flex items-center">
+              <Link to="/brands/piaa" className="btn-primary inline-flex items-center">
                 View PIAA Range <ChevronRight className="ml-2" size={20} />
-              </a>
+              </Link>
             </div>
             <div className="relative">
               <div className="bg-gray-900/90 border border-gray-800 p-8 backdrop-blur-sm">
