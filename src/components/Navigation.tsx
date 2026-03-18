@@ -1,10 +1,34 @@
 import React, { useState } from 'react';
-import { Menu, X } from 'lucide-react';
+import { Menu, ShoppingCart, X } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { useAdminAuth } from '@/auth/AdminAuthContext';
+import { CART_UPDATED_EVENT, cartService } from '@/services/cartService';
+
+interface NavItem {
+  label: string;
+  href: string;
+  isPlaceholder?: boolean;
+}
 
 const Navigation: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
+  const [cartItemCount, setCartItemCount] = useState(() => cartService.getItemCount());
+  const { isAuthenticated, logout } = useAdminAuth();
 
-  const navItems = [
+  React.useEffect(() => {
+    const syncCartCount = () => setCartItemCount(cartService.getItemCount());
+    syncCartCount();
+
+    window.addEventListener(CART_UPDATED_EVENT, syncCartCount);
+    window.addEventListener('storage', syncCartCount);
+
+    return () => {
+      window.removeEventListener(CART_UPDATED_EVENT, syncCartCount);
+      window.removeEventListener('storage', syncCartCount);
+    };
+  }, []);
+
+  const navItems: NavItem[] = [
     { label: 'Home', href: '/' },
     { label: 'About', href: '/about' },
     { label: 'Gear', href: '/gear' },
@@ -13,8 +37,12 @@ const Navigation: React.FC = () => {
     { label: 'News', href: '/news' },
     { label: 'Gallery', href: '/gallery' },
     { label: 'Contact', href: '/contact' },
-    { label: 'Shop', href: '/shop', isPlaceholder: true },
+    { label: 'Shop', href: '/shop' },
+    { label: `Cart (${cartItemCount})`, href: '/cart' },
   ];
+
+  const authenticatedItems: NavItem[] = isAuthenticated ? [{ label: 'Admin', href: '/admin' }] : [];
+  const allItems = [...navItems, ...authenticatedItems];
 
   return (
     <nav className="sticky top-0 z-50 bg-black/95 backdrop-blur-sm border-b border-gray-900">
@@ -22,27 +50,37 @@ const Navigation: React.FC = () => {
         <div className="flex items-center justify-between h-20">
           {/* Logo */}
           <div className="flex items-center">
-            <a href="/" className="text-2xl md:text-3xl font-heading font-bold tracking-tight">
+            <Link to="/" className="text-2xl md:text-3xl font-heading font-bold tracking-tight">
               Race & Rally <span className="text-motorsport-yellow">Australia</span>
-            </a>
+            </Link>
           </div>
 
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center space-x-8">
-            {navItems.map((item) => (
-              <a
+            {allItems.map((item) => (
+              <Link
                 key={item.label}
-                href={item.href}
+                to={item.href}
                 className={`font-medium transition-colors hover:text-motorsport-yellow ${
                   item.isPlaceholder ? 'text-gray-500' : 'text-white'
                 }`}
               >
                 {item.label}
-                {item.isPlaceholder && (
-                  <span className="ml-1 text-xs text-motorsport-yellow">(Soon)</span>
-                )}
-              </a>
+                {item.href === '/cart' && <ShoppingCart size={14} className="inline ml-1" />}
+              </Link>
             ))}
+            {isAuthenticated ? (
+              <button
+                onClick={logout}
+                className="font-medium text-gray-300 transition-colors hover:text-motorsport-yellow"
+              >
+                Logout
+              </button>
+            ) : (
+              <Link to="/admin/login" className="font-medium text-gray-500 transition-colors hover:text-motorsport-yellow">
+                Admin Login
+              </Link>
+            )}
           </div>
 
           {/* Mobile menu button */}
@@ -59,21 +97,38 @@ const Navigation: React.FC = () => {
         {isOpen && (
           <div className="md:hidden border-t border-gray-900 py-4">
             <div className="flex flex-col space-y-4">
-              {navItems.map((item) => (
-                <a
+              {allItems.map((item) => (
+                <Link
                   key={item.label}
-                  href={item.href}
+                  to={item.href}
                   className={`font-medium py-2 px-4 transition-colors hover:text-motorsport-yellow ${
                     item.isPlaceholder ? 'text-gray-500' : 'text-white'
                   }`}
                   onClick={() => setIsOpen(false)}
                 >
                   {item.label}
-                  {item.isPlaceholder && (
-                    <span className="ml-2 text-xs text-motorsport-yellow">(Coming Soon)</span>
-                  )}
-                </a>
+                  {item.href === '/cart' && <ShoppingCart size={14} className="inline ml-2" />}
+                </Link>
               ))}
+              {isAuthenticated ? (
+                <button
+                  className="text-left font-medium py-2 px-4 text-gray-300 transition-colors hover:text-motorsport-yellow"
+                  onClick={() => {
+                    logout();
+                    setIsOpen(false);
+                  }}
+                >
+                  Logout
+                </button>
+              ) : (
+                <Link
+                  to="/admin/login"
+                  className="font-medium py-2 px-4 text-gray-500 transition-colors hover:text-motorsport-yellow"
+                  onClick={() => setIsOpen(false)}
+                >
+                  Admin Login
+                </Link>
+              )}
             </div>
           </div>
         )}

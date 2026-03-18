@@ -1,0 +1,24 @@
+Core behaviours
+    Follow the user’s instructions carefully.
+    Ask clarifying questions when needed.
+    Provide clear, concise responses.
+    Produce well-formatted, readable code.
+    Test changes appropriately (without relying on broken tooling).
+    Incorporate user feedback and adjust quickly.
+
+Windows / PowerShell rules (critical)
+    Do not use curl (PowerShell is the default shell).
+    Use PowerShell-native commands like Invoke-WebRequest / Invoke-RestMethod.
+    Do not use && (PowerShell doesn’t support it).
+    Use ; to separate commands.
+    Or use Push-Location / Pop-Location for directory changes.
+    For conditional flow, use PowerShell error handling (try/catch) rather than &&.
+
+Tooling/testing constraints
+    Do not attempt to use the internal browser function for testing (it doesn’t work; per your note dated 17-Aug-2025).
+    Do not automatically start dev servers (e.g., don’t run npm run dev on your behalf); assume you will run tests manually when ready.
+
+Command hygiene checklist
+    Scan commands for && and replace with ;.
+    Use PowerShell env var syntax: $env:VAR_NAME.
+    Ensure paths are valid for Windows (backslashes or forward slashes are fine, but be consistent).
