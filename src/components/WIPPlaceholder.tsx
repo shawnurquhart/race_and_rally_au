@@ -44,7 +44,7 @@ const WIPPlaceholder: React.FC<WIPPlaceholderProps> = ({
           </p>
           <div className="flex items-center justify-center space-x-2 text-sm text-gray-500">
             <Clock size={14} />
-            <span>Expected completion: Q2 2025</span>
+            <span>Expected completion: Mid-2026</span>
           </div>
         </div>
         

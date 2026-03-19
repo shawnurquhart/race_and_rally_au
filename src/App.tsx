@@ -5,6 +5,7 @@ import Navigation from './components/Navigation';
 import Footer from './components/Footer';
 import HomePage from './pages/HomePage';
 import PIAAPage from './pages/PIAAPage';
+import PIAACatalogPage from './pages/PIAACatalogPage';
 import AboutPage from './pages/AboutPage';
 import BrandsPage from './pages/BrandsPage';
 import ContactPage from './pages/ContactPage';
@@ -21,6 +22,11 @@ import AdminProductUploadPage from './pages/admin/AdminProductUploadPage';
 import AdminProductReviewPage from './pages/admin/AdminProductReviewPage';
 import AdminSettingsPage from './pages/admin/AdminSettingsPage';
 import PIAAProductPage from './pages/PIAAProductPage';
+import PIAAFindYourLightPage from './pages/PIAAFindYourLightPage';
+import PIAATechnicalPage from './pages/PIAATechnicalPage';
+import PIAAApplicationsPage from './pages/PIAAApplicationsPage';
+import PIAASpotlightPage from './pages/PIAASpotlightPage';
+import PIAADigitalCataloguePage from './pages/PIAADigitalCataloguePage';
 
 function App() {
   return (
@@ -35,7 +41,14 @@ function App() {
               <Route path="/gear" element={<GearPage />} />
               <Route path="/brands" element={<BrandsPage />} />
               <Route path="/brands/piaa" element={<PIAAPage />} />
+              <Route path="/brands/piaa/catalog" element={<PIAACatalogPage />} />
+              <Route path="/brands/piaa/find-your-light" element={<PIAAFindYourLightPage />} />
+              <Route path="/brands/piaa/technical" element={<PIAATechnicalPage />} />
+              <Route path="/brands/piaa/applications" element={<PIAAApplicationsPage />} />
+              <Route path="/brands/piaa/spotlight" element={<PIAASpotlightPage />} />
+              <Route path="/brands/piaa/digital-catalogue" element={<PIAADigitalCataloguePage />} />
               <Route path="/brands/piaa/product/:productId" element={<PIAAProductPage />} />
+              <Route path="/brands/piaa/catalog/product/:productId" element={<PIAAProductPage />} />
               <Route path="/events" element={<EventsPage />} />
               <Route path="/news" element={<NewsPage />} />
               <Route path="/gallery" element={<GalleryPage />} />

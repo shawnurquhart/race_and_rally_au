@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, ChevronDown, ChevronUp, ShoppingCart } from 'lucide-react';
 import { productService } from '@/services/productService';
 import { imageAssetService } from '@/services/imageAssetService';
@@ -19,6 +19,7 @@ const getImageDirectory = (reference: string): string => {
 
 const PIAAProductPage: React.FC = () => {
   const { productId } = useParams<{ productId: string }>();
+  const location = useLocation();
   const navigate = useNavigate();
   const { isAuthenticated } = useAdminAuth();
 
@@ -28,6 +29,10 @@ const PIAAProductPage: React.FC = () => {
   const [settings, setSettings] = useState(() => adminSettingsService.get());
   const [selectedImageReference, setSelectedImageReference] = useState('');
   const [cartQuantity, setCartQuantity] = useState(0);
+
+  const catalogPath = location.pathname.startsWith('/brands/piaa/catalog')
+    ? '/brands/piaa/catalog'
+    : '/brands/piaa';
 
   const loadProduct = async () => {
     if (!productId) {
@@ -142,7 +147,7 @@ const PIAAProductPage: React.FC = () => {
     return (
       <div className="section-padding container-narrow px-4 md:px-6">
         <p className="text-gray-300 mb-4">Product not found.</p>
-        <Link to="/brands/piaa" className="text-motorsport-yellow hover:underline">
+        <Link to={catalogPath} className="text-motorsport-yellow hover:underline">
           Return to PIAA products
         </Link>
       </div>
@@ -152,7 +157,7 @@ const PIAAProductPage: React.FC = () => {
   return (
     <section className="section-padding bg-black min-h-screen">
       <div className="container-narrow px-4 md:px-6">
-        <Link to="/brands/piaa" className="inline-flex items-center text-motorsport-yellow mb-8 hover:underline">
+        <Link to={catalogPath} className="inline-flex items-center text-motorsport-yellow mb-8 hover:underline">
           <ArrowLeft size={20} className="mr-2" />
           Back to PIAA products
         </Link>
