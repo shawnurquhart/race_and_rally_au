@@ -9,6 +9,7 @@ import PIAACatalogPage from './pages/PIAACatalogPage';
 import AboutPage from './pages/AboutPage';
 import BrandsPage from './pages/BrandsPage';
 import ContactPage from './pages/ContactPage';
+import DealersPage from './pages/DealersPage';
 import EventsPage from './pages/EventsPage';
 import GalleryPage from './pages/GalleryPage';
 import GearPage from './pages/GearPage';
@@ -52,6 +53,7 @@ function App() {
               <Route path="/events" element={<EventsPage />} />
               <Route path="/news" element={<NewsPage />} />
               <Route path="/gallery" element={<GalleryPage />} />
+              <Route path="/dealers" element={<DealersPage />} />
               <Route path="/contact" element={<ContactPage />} />
               <Route path="/shop" element={<ShopPage />} />
               <Route path="/cart" element={<CartPage />} />

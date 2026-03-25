@@ -2,15 +2,25 @@ import React, { useState } from 'react';
 import AdminLayout from './AdminLayout';
 import { adminSettingsService, type AdminUploadSettings } from '@/services/adminSettingsService';
 
+type NumericSettingKey = 'smallProductDisplaySizePx' | 'productDetailDisplaySizePx' | 'maxImageSizeKb';
+type MenuToggleSettingKey = 'showGearOnMenu' | 'showBrandsOnMenu';
+
 const AdminSettingsPage: React.FC = () => {
   const [settings, setSettings] = useState<AdminUploadSettings>(() => adminSettingsService.get());
   const [message, setMessage] = useState('');
 
-  const onNumberChange = (key: keyof AdminUploadSettings, value: string) => {
+  const onNumberChange = (key: NumericSettingKey, value: string) => {
     const parsed = Number(value);
     setSettings((previous) => ({
       ...previous,
       [key]: Number.isFinite(parsed) ? parsed : 0,
+    }));
+  };
+
+  const onToggleChange = (key: MenuToggleSettingKey, checked: boolean) => {
+    setSettings((previous) => ({
+      ...previous,
+      [key]: checked,
     }));
   };
 
@@ -90,6 +100,40 @@ const AdminSettingsPage: React.FC = () => {
                 onChange={(event) => onNumberChange('maxImageSizeKb', event.target.value)}
               />
             </div>
+          </div>
+
+          <button onClick={onSave} className="btn-primary mt-5">
+            Save Settings
+          </button>
+          {message && <p className="text-sm text-gray-300 mt-3">{message}</p>}
+        </div>
+
+        <div className="border border-gray-800 bg-gray-950 p-5">
+          <h2 className="text-xl font-heading font-bold mb-3">Site configuration</h2>
+          <p className="text-sm text-gray-400 mb-5">
+            Control whether selected sections appear in the website menu.
+          </p>
+
+          <div className="space-y-4">
+            <label className="flex items-center justify-between border border-gray-800 bg-black/40 px-4 py-3">
+              <span className="text-sm text-gray-200">Show on menu: Gear</span>
+              <input
+                type="checkbox"
+                className="h-4 w-4"
+                checked={settings.showGearOnMenu}
+                onChange={(event) => onToggleChange('showGearOnMenu', event.target.checked)}
+              />
+            </label>
+
+            <label className="flex items-center justify-between border border-gray-800 bg-black/40 px-4 py-3">
+              <span className="text-sm text-gray-200">Show on menu: Brands</span>
+              <input
+                type="checkbox"
+                className="h-4 w-4"
+                checked={settings.showBrandsOnMenu}
+                onChange={(event) => onToggleChange('showBrandsOnMenu', event.target.checked)}
+              />
+            </label>
           </div>
 
           <button onClick={onSave} className="btn-primary mt-5">

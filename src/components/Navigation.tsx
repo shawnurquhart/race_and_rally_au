@@ -3,6 +3,7 @@ import { Menu, ShoppingCart, X } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useAdminAuth } from '@/auth/AdminAuthContext';
 import { CART_UPDATED_EVENT, cartService } from '@/services/cartService';
+import { ADMIN_SETTINGS_UPDATED_EVENT, adminSettingsService } from '@/services/adminSettingsService';
 
 interface NavItem {
   label: string;
@@ -13,29 +14,38 @@ interface NavItem {
 const Navigation: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [cartItemCount, setCartItemCount] = useState(() => cartService.getItemCount());
+  const [menuSettings, setMenuSettings] = useState(() => adminSettingsService.get());
   const { isAuthenticated, logout } = useAdminAuth();
 
   React.useEffect(() => {
     const syncCartCount = () => setCartItemCount(cartService.getItemCount());
+    const syncMenuSettings = () => setMenuSettings(adminSettingsService.get());
     syncCartCount();
+    syncMenuSettings();
 
     window.addEventListener(CART_UPDATED_EVENT, syncCartCount);
+    window.addEventListener(ADMIN_SETTINGS_UPDATED_EVENT, syncMenuSettings);
     window.addEventListener('storage', syncCartCount);
+    window.addEventListener('storage', syncMenuSettings);
 
     return () => {
       window.removeEventListener(CART_UPDATED_EVENT, syncCartCount);
+      window.removeEventListener(ADMIN_SETTINGS_UPDATED_EVENT, syncMenuSettings);
       window.removeEventListener('storage', syncCartCount);
+      window.removeEventListener('storage', syncMenuSettings);
     };
   }, []);
 
   const navItems: NavItem[] = [
     { label: 'Home', href: '/' },
     { label: 'About', href: '/about' },
-    { label: 'Gear', href: '/gear' },
-    { label: 'Brands', href: '/brands' },
+    ...(menuSettings.showGearOnMenu ? [{ label: 'Gear', href: '/gear' }] : []),
+    ...(menuSettings.showBrandsOnMenu ? [{ label: 'Brands', href: '/brands' }] : []),
+    { label: 'PIAA', href: '/brands/piaa' },
+    { label: 'Gallery', href: '/gallery' },
     { label: 'Events', href: '/events' },
     { label: 'News', href: '/news' },
-    { label: 'Gallery', href: '/gallery' },
+    { label: 'Dealers', href: '/dealers' },
     { label: 'Contact', href: '/contact' },
     { label: 'Shop', href: '/shop' },
     { label: `Cart (${cartItemCount})`, href: '/cart' },

@@ -1,7 +1,20 @@
 import React from 'react';
 import PIAASectionPageShell from '@/components/piaa/PIAASectionPageShell';
 
-const builds = ['4WD Builds', 'Rally Cars', 'Touring Setups', 'Daily Driver Examples'];
+const builds = [
+  'Automotive',
+  '4x4 Off-road',
+  'Moto - Touring',
+  'Motorsport',
+  'Agricultural',
+  'ATV - Buggies',
+  'Custom Applications',
+  'Defence',
+  'Emergency Services',
+  'Mining',
+  'Trucking',
+  'Marine',
+];
 
 const PIAAApplicationsPage: React.FC = () => {
   return (
