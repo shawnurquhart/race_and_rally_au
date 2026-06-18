@@ -1,11 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, ChevronDown, ChevronUp, ShoppingCart } from 'lucide-react';
+import { ArrowLeft, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, ShoppingCart, Trash2, X } from 'lucide-react';
 import { productService } from '@/services/productService';
 import { imageAssetService } from '@/services/imageAssetService';
 import { adminSettingsService } from '@/services/adminSettingsService';
 import { useAdminAuth } from '@/auth/AdminAuthContext';
-import type { PiaaCategory, Product } from '@/types/product';
+import { PIAA_CATEGORIES, type PiaaCategory, type Product } from '@/types/product';
 import { CART_UPDATED_EVENT, cartService } from '@/services/cartService';
 
 const getImageDirectory = (reference: string): string => {
@@ -29,6 +29,8 @@ const PIAAProductPage: React.FC = () => {
   const [settings, setSettings] = useState(() => adminSettingsService.get());
   const [selectedImageReference, setSelectedImageReference] = useState('');
   const [cartQuantity, setCartQuantity] = useState(0);
+  const [isImageModalOpen, setIsImageModalOpen] = useState(false);
+  const fallbackImage = imageAssetService.getFallbackImagePath();
 
   const catalogPath = location.pathname.startsWith('/brands/piaa/catalog')
     ? '/brands/piaa/catalog'
@@ -81,16 +83,49 @@ const PIAAProductPage: React.FC = () => {
     return Array.from(new Set(values));
   }, [product]);
 
+  const galleryItems = useMemo(() => {
+    const seenResolved = new Set<string>();
+    const items: Array<{ reference: string; resolved: string }> = [];
+
+    galleryReferences.forEach((reference) => {
+      const resolved = imageAssetService.resolveImage(reference);
+      if (!resolved) {
+        return;
+      }
+
+      // Prevent duplicate nav entries when multiple references resolve to same image URL/data.
+      if (seenResolved.has(resolved)) {
+        return;
+      }
+
+      seenResolved.add(resolved);
+      items.push({ reference, resolved });
+    });
+
+    return items;
+  }, [galleryReferences]);
+
   const activeReference = selectedImageReference || galleryReferences[0] || '';
   const activeImage = imageAssetService.resolveImage(activeReference);
+
+  const activeGalleryIndex = useMemo(() => {
+    if (!activeImage) {
+      return 0;
+    }
+    return Math.max(0, galleryItems.findIndex((item) => item.resolved === activeImage));
+  }, [activeImage, galleryItems]);
 
   const onSave = async () => {
     if (!product) {
       return;
     }
 
+    const hasUsablePrimary = Boolean(product.imageReference && imageAssetService.resolveImage(product.imageReference));
+    const fallbackPrimary = (product.galleryImageReferences ?? [])[0] ?? product.imageReference;
+
     await productService.upsert({
       ...product,
+      imageReference: hasUsablePrimary ? product.imageReference : fallbackPrimary,
       updatedAt: new Date().toISOString(),
     });
 
@@ -105,6 +140,36 @@ const PIAAProductPage: React.FC = () => {
 
     cartService.setProductQuantity(product, quantity);
     setCartQuantity(cartService.getItemQuantity(product.id));
+  };
+
+  const openImageModal = () => {
+    if (!activeImage) {
+      return;
+    }
+
+    setIsImageModalOpen(true);
+  };
+
+  const closeImageModal = () => {
+    setIsImageModalOpen(false);
+  };
+
+  const showPreviousModalImage = () => {
+    if (galleryItems.length <= 1) {
+      return;
+    }
+
+    const nextIndex = (activeGalleryIndex - 1 + galleryItems.length) % galleryItems.length;
+    setSelectedImageReference(galleryItems[nextIndex]?.reference ?? '');
+  };
+
+  const showNextModalImage = () => {
+    if (galleryItems.length <= 1) {
+      return;
+    }
+
+    const nextIndex = (activeGalleryIndex + 1) % galleryItems.length;
+    setSelectedImageReference(galleryItems[nextIndex]?.reference ?? '');
   };
 
   const onAdditionalImagesSelected = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -128,14 +193,43 @@ const PIAAProductPage: React.FC = () => {
     });
 
     const nextGallery = Array.from(new Set([...(product.galleryImageReferences ?? []), ...storedReferences]));
+    const hasUsablePrimary = Boolean(product.imageReference && imageAssetService.resolveImage(product.imageReference));
+    const nextPrimaryReference = hasUsablePrimary ? product.imageReference : storedReferences[0] ?? product.imageReference;
 
     await productService.upsert({
       ...product,
+      imageReference: nextPrimaryReference,
       galleryImageReferences: nextGallery,
       updatedAt: new Date().toISOString(),
     });
 
     setMessage(`${storedReferences.length} additional image(s) uploaded.`);
+    await loadProduct();
+  };
+
+  const onRemoveAdditionalImage = async (reference: string) => {
+    if (!product) {
+      return;
+    }
+
+    const nextGallery = (product.galleryImageReferences ?? []).filter((item) => item !== reference);
+    const isRemovingPrimary = reference === product.imageReference;
+    const nextPrimaryReference = isRemovingPrimary ? nextGallery[0] ?? '' : product.imageReference;
+
+    imageAssetService.removeReference(reference);
+
+    await productService.upsert({
+      ...product,
+      imageReference: nextPrimaryReference,
+      galleryImageReferences: nextGallery,
+      updatedAt: new Date().toISOString(),
+    });
+
+    if (selectedImageReference === reference) {
+      setSelectedImageReference('');
+    }
+
+    setMessage('Image removed.');
     await loadProduct();
   };
 
@@ -165,12 +259,26 @@ const PIAAProductPage: React.FC = () => {
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_1fr] gap-8">
           <div>
             {activeImage ? (
-              <img
-                src={activeImage}
-                alt={product.name}
-                className="object-cover border border-gray-800 bg-black"
-                style={{ width: settings.productDetailDisplaySizePx, height: settings.productDetailDisplaySizePx, maxWidth: '100%' }}
-              />
+              <div>
+                <button type="button" onClick={openImageModal} className="inline-block">
+                  <div
+                    className="border border-gray-800 bg-black flex items-center justify-center overflow-hidden"
+                    style={{ width: settings.productDetailDisplaySizePx, height: settings.productDetailDisplaySizePx, maxWidth: '100%' }}
+                  >
+                    <img
+                      src={activeImage}
+                      alt={product.name}
+                      className="w-full h-full object-contain object-center"
+                      onError={(event) => {
+                        const img = event.currentTarget;
+                        if (img.src.endsWith(fallbackImage)) return;
+                        img.src = fallbackImage;
+                      }}
+                    />
+                  </div>
+                </button>
+                <p className="text-xs text-motorsport-yellow mt-2">Click to enlarge</p>
+              </div>
             ) : (
               <div
                 className="border border-gray-800 bg-gray-900 text-gray-500 flex items-center justify-center"
@@ -187,14 +295,40 @@ const PIAAProductPage: React.FC = () => {
                   return null;
                 }
 
+                const isPrimary = reference === product.imageReference;
+
                 return (
-                  <button
-                    key={reference}
-                    onClick={() => setSelectedImageReference(reference)}
-                    className={`border ${activeReference === reference ? 'border-motorsport-yellow' : 'border-gray-700'}`}
-                  >
-                    <img src={thumb} alt={product.name} className="w-16 h-16 object-cover" />
-                  </button>
+                  <div key={reference} className="relative">
+                    <button
+                      onClick={() => setSelectedImageReference(reference)}
+                      className={`border ${activeReference === reference ? 'border-motorsport-yellow' : 'border-gray-700'}`}
+                    >
+                      <div className="w-16 h-16 bg-black flex items-center justify-center overflow-hidden">
+                        <img
+                          src={thumb}
+                          alt={product.name}
+                          className="w-full h-full object-contain object-center"
+                          onError={(event) => {
+                            const img = event.currentTarget;
+                            if (img.src.endsWith(fallbackImage)) return;
+                            img.src = fallbackImage;
+                          }}
+                        />
+                      </div>
+                    </button>
+
+                    {isAuthenticated && (
+                      <button
+                        type="button"
+                        onClick={() => void onRemoveAdditionalImage(reference)}
+                        className="absolute -top-2 -right-2 rounded-full bg-red-600 hover:bg-red-500 text-white p-1 border border-black"
+                        aria-label={isPrimary ? 'Remove primary image' : 'Remove image'}
+                        title={isPrimary ? 'Remove primary image' : 'Remove image'}
+                      >
+                        <Trash2 size={12} />
+                      </button>
+                    )}
+                  </div>
                 );
               })}
             </div>
@@ -288,9 +422,11 @@ const PIAAProductPage: React.FC = () => {
                     value={product.category}
                     onChange={(event) => setProduct({ ...product, category: event.target.value as PiaaCategory })}
                   >
-                    <option>Lights</option>
-                    <option>Globes</option>
-                    <option>Other Products</option>
+                    {PIAA_CATEGORIES.map((category) => (
+                      <option key={category} value={category}>
+                        {category}
+                      </option>
+                    ))}
                   </select>
                 </div>
 
@@ -351,6 +487,57 @@ const PIAAProductPage: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {isImageModalOpen && activeImage && (
+        <div className="fixed inset-0 z-50 bg-black/85 flex items-center justify-center p-4">
+          <div className="relative border border-gray-700 bg-black p-4 md:p-5 max-w-full">
+            <button
+              type="button"
+              onClick={closeImageModal}
+              className="absolute -top-3 -right-3 rounded-full bg-gray-900 border border-gray-600 p-2 text-gray-200 hover:text-white"
+              aria-label="Close product image modal"
+            >
+              <X size={16} />
+            </button>
+
+            <div className="flex items-center justify-between mb-3 gap-4">
+              <p className="text-sm text-gray-300">{product.name}</p>
+              <p className="text-xs text-gray-500">
+                {activeGalleryIndex + 1}/{galleryItems.length || 1}
+              </p>
+            </div>
+
+            <div
+              className="border border-gray-800 bg-black flex items-center justify-center overflow-hidden"
+              style={{ width: settings.productModalDisplaySizePx, height: settings.productModalDisplaySizePx, maxWidth: '88vw', maxHeight: '78vh' }}
+            >
+              <img
+                src={activeImage}
+                alt={product.name}
+                className="w-full h-full object-contain object-center"
+                onError={(event) => {
+                  const img = event.currentTarget;
+                  if (img.src.endsWith(fallbackImage)) return;
+                  img.src = fallbackImage;
+                }}
+              />
+            </div>
+
+            {galleryItems.length > 1 && (
+              <div className="mt-4 flex items-center justify-between gap-3">
+                <button type="button" onClick={showPreviousModalImage} className="btn-secondary inline-flex items-center gap-2">
+                  <ChevronLeft size={16} />
+                  Previous
+                </button>
+                <button type="button" onClick={showNextModalImage} className="btn-secondary inline-flex items-center gap-2">
+                  Next
+                  <ChevronRight size={16} />
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </section>
   );
 };

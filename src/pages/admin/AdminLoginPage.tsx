@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAdminAuth } from '@/auth/AdminAuthContext';
-import { DEV_ADMIN_PASSWORD, DEV_ADMIN_USERNAME } from '@/auth/devAdminAuth';
+import { devAdminAuth } from '@/auth/devAdminAuth';
 
 interface LoginLocationState {
   from?: string;
@@ -13,10 +13,13 @@ const AdminLoginPage: React.FC = () => {
   const location = useLocation();
   const state = location.state as LoginLocationState | null;
 
-  const [username, setUsername] = useState(DEV_ADMIN_USERNAME);
-  const [password, setPassword] = useState(DEV_ADMIN_PASSWORD);
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
   const [error, setError] = useState('');
-  const [showPassword, setShowPassword] = useState(true);
+  const [showPassword, setShowPassword] = useState(false);
+  const localDevEnabled = devAdminAuth.isLocalDevEnabled();
+  const productionAuthEnabled = String(import.meta.env.VITE_USE_REMOTE_API ?? 'false') === 'true';
+  const loginEnabled = localDevEnabled || productionAuthEnabled;
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -24,12 +27,26 @@ const AdminLoginPage: React.FC = () => {
     }
   }, [isAuthenticated, navigate]);
 
-  const onSubmit = (event: React.FormEvent) => {
+  useEffect(() => {
+    if (!loginEnabled) {
+      setUsername('');
+      setPassword('');
+      return;
+    }
+
+    if (localDevEnabled) {
+      const { username: localUsername, password: localPassword } = devAdminAuth.getLocalDevCredentials();
+      setUsername(localUsername);
+      setPassword(localPassword);
+    }
+  }, [localDevEnabled, loginEnabled]);
+
+  const onSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
-    const didLogin = login(username, password);
+    const didLogin = await login(username, password);
 
     if (!didLogin) {
-      setError('Invalid development admin credentials.');
+      setError(loginEnabled ? 'Invalid admin credentials.' : 'Admin login is disabled on this build.');
       return;
     }
 
@@ -41,10 +58,14 @@ const AdminLoginPage: React.FC = () => {
       <div className="w-full max-w-md border border-gray-800 bg-gray-950 p-8">
         <h1 className="text-3xl font-heading font-bold mb-2">Admin Login</h1>
         <p className="text-gray-400 text-sm mb-6">
-          Development-only authentication. This will be replaced by Supabase Auth.
+          {localDevEnabled
+            ? 'Development-only authentication enabled for localhost development only.'
+            : loginEnabled
+              ? 'Server-side admin authentication is enabled for this build.'
+              : 'Admin login is disabled on this build.'}
         </p>
 
-        <form className="space-y-4" onSubmit={onSubmit}>
+        <form className="space-y-4" onSubmit={(event) => void onSubmit(event)}>
           <div>
             <label className="block text-sm text-gray-300 mb-1" htmlFor="admin-username">
               Username
@@ -55,6 +76,7 @@ const AdminLoginPage: React.FC = () => {
               value={username}
               onChange={(event) => setUsername(event.target.value)}
               autoComplete="username"
+              disabled={!loginEnabled}
               required
             />
           </div>
@@ -70,12 +92,14 @@ const AdminLoginPage: React.FC = () => {
               value={password}
               onChange={(event) => setPassword(event.target.value)}
               autoComplete="current-password"
+              disabled={!loginEnabled}
               required
             />
             <button
               type="button"
               className="mt-2 text-xs text-motorsport-yellow hover:underline"
               onClick={() => setShowPassword((previous) => !previous)}
+              disabled={!loginEnabled}
             >
               {showPassword ? 'Hide password' : 'Show password'}
             </button>
@@ -83,7 +107,7 @@ const AdminLoginPage: React.FC = () => {
 
           {error && <p className="text-red-400 text-sm">{error}</p>}
 
-          <button type="submit" className="btn-primary w-full">
+          <button type="submit" className="btn-primary w-full disabled:opacity-50" disabled={!loginEnabled}>
             Sign In
           </button>
         </form>

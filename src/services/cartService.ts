@@ -35,6 +35,15 @@ export interface CartTotals {
 export interface CheckoutOrder {
   id: string;
   createdAt: string;
+  simulatedTransactionId: string;
+  paymentMethod: 'simulated-card' | 'till-hosted-payment';
+  paymentStatus: 'captured' | 'pending' | 'failed' | 'cancelled';
+  paymentProvider?: string;
+  paymentReference?: string;
+  gatewayTransactionId?: string;
+  paymentDate?: string;
+  paymentResponse?: unknown;
+  fulfilmentStatus: 'pending' | 'fulfilled';
   includeGst: boolean;
   customer: CartCustomerInfo;
   items: CartItem[];
@@ -44,6 +53,12 @@ export interface CheckoutOrder {
 const makeOrderId = (): string => {
   const now = new Date();
   return `RRA-${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}-${Math.floor(1000 + Math.random() * 9000)}`;
+};
+
+const makeSimulatedTransactionId = (): string => {
+  const timestamp = Date.now();
+  const token = Math.floor(10000 + Math.random() * 90000);
+  return `SIM-TXN-${timestamp}-${token}`;
 };
 
 const emptyCustomer = (): CartCustomerInfo => ({
@@ -92,8 +107,42 @@ const readOrders = (): CheckoutOrder[] => {
   }
 
   try {
-    const parsed = JSON.parse(raw) as CheckoutOrder[];
-    return Array.isArray(parsed) ? parsed : [];
+    const parsed = JSON.parse(raw) as Array<Partial<CheckoutOrder>>;
+    if (!Array.isArray(parsed)) {
+      return [];
+    }
+
+    return parsed
+      .filter((order): order is Partial<CheckoutOrder> & { id: string; createdAt: string } => Boolean(order?.id && order?.createdAt))
+      .map((order) => ({
+        id: order.id,
+        createdAt: order.createdAt,
+        simulatedTransactionId: order.simulatedTransactionId ?? `SIM-TXN-LEGACY-${order.id}`,
+        paymentMethod: order.paymentMethod === 'till-hosted-payment' ? 'till-hosted-payment' : 'simulated-card',
+        paymentStatus:
+          order.paymentStatus === 'pending' || order.paymentStatus === 'failed' || order.paymentStatus === 'cancelled'
+            ? order.paymentStatus
+            : 'captured',
+        paymentProvider: order.paymentProvider,
+        paymentReference: order.paymentReference,
+        gatewayTransactionId: order.gatewayTransactionId,
+        paymentDate: order.paymentDate,
+        paymentResponse: order.paymentResponse,
+        fulfilmentStatus: order.fulfilmentStatus === 'fulfilled' ? 'fulfilled' : 'pending',
+        includeGst: typeof order.includeGst === 'boolean' ? order.includeGst : true,
+        customer: {
+          fullName: order.customer?.fullName ?? '',
+          phone: order.customer?.phone ?? '',
+          email: order.customer?.email ?? '',
+          shipToAddress: order.customer?.shipToAddress ?? '',
+        },
+        items: Array.isArray(order.items) ? order.items : [],
+        totals: {
+          subtotal: Number(order.totals?.subtotal ?? 0),
+          gst: Number(order.totals?.gst ?? 0),
+          total: Number(order.totals?.total ?? 0),
+        },
+      }));
   } catch {
     return [];
   }
@@ -184,10 +233,7 @@ export const cartService = {
   },
 
   clearCart(): CartState {
-    const next = {
-      ...defaultCartState(),
-      customer: readCart().customer,
-    };
+    const next = defaultCartState();
     writeCart(next);
     return next;
   },
@@ -210,6 +256,10 @@ export const cartService = {
     const order: CheckoutOrder = {
       id: makeOrderId(),
       createdAt: new Date().toISOString(),
+      simulatedTransactionId: makeSimulatedTransactionId(),
+      paymentMethod: 'simulated-card',
+      paymentStatus: 'captured',
+      fulfilmentStatus: 'pending',
       includeGst: cart.includeGst,
       customer: cart.customer,
       items: cart.items,

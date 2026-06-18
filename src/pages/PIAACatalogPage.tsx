@@ -1,9 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ArrowLeft, ChevronDown, ChevronUp, ShoppingCart } from 'lucide-react';
+import { ArrowLeft, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, ShoppingCart, X } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { productService } from '@/services/productService';
 import { imageAssetService } from '@/services/imageAssetService';
-import { PIAA_CATEGORIES } from '@/types/product';
+import { PIAA_CATEGORIES, WIPER_SUBCATEGORIES } from '@/types/product';
 import type { PiaaCategory, Product } from '@/types/product';
 import { adminSettingsService } from '@/services/adminSettingsService';
 import { useAdminAuth } from '@/auth/AdminAuthContext';
@@ -20,6 +20,9 @@ const PIAACatalogPage: React.FC = () => {
   const [cartItemCount, setCartItemCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [settings, setSettings] = useState(() => adminSettingsService.get());
+  const [modalProductId, setModalProductId] = useState<string | null>(null);
+  const [modalImageIndex, setModalImageIndex] = useState(0);
+  const fallbackImage = imageAssetService.getFallbackImagePath();
 
   const syncCartState = () => {
     const cart = cartService.getCart();
@@ -93,6 +96,24 @@ const PIAACatalogPage: React.FC = () => {
     return activeProducts.filter((product) => (product.folderName || '') === activeFolder);
   }, [activeFolder, activeProducts]);
 
+  const visibleWiperGroups = useMemo(() => {
+    if (activeSection !== 'Wiper Blades') {
+      return [] as Array<{ label: string; products: Product[] }>;
+    }
+
+    const groups: Array<{ label: string; products: Product[] }> = WIPER_SUBCATEGORIES.map((subCategory) => ({
+      label: subCategory,
+      products: visibleProducts.filter((product) => product.subCategory === subCategory),
+    }));
+
+    const ungrouped = visibleProducts.filter((product) => !product.subCategory || !WIPER_SUBCATEGORIES.includes(product.subCategory as any));
+    if (ungrouped.length > 0) {
+      groups.push({ label: 'Other Wiper Blades', products: ungrouped });
+    }
+
+    return groups;
+  }, [activeSection, visibleProducts]);
+
   const formatPrice = (price: number | null): string => {
     if (price === null) {
       return 'Price on request';
@@ -121,6 +142,173 @@ const PIAACatalogPage: React.FC = () => {
   };
 
   const getProductQuantity = (productId: string): number => cartQuantities[productId] ?? 0;
+
+  const openProductModal = (product: Product) => {
+    const references = [product.imageReference, ...(product.galleryImageReferences ?? [])].filter(Boolean);
+    if (references.length === 0) {
+      return;
+    }
+
+    setModalProductId(product.id);
+    setModalImageIndex(0);
+  };
+
+  const closeProductModal = () => {
+    setModalProductId(null);
+    setModalImageIndex(0);
+  };
+
+  const renderProductCard = (product: Product) => {
+    const image = imageAssetService.resolveImage(product.imageReference);
+
+    return (
+      <div key={product.id} className="border border-gray-800 bg-black p-4 md:p-5">
+        <div className="grid grid-cols-1 md:grid-cols-[120px_1fr] gap-4">
+          <div>
+            <button
+              type="button"
+              className="inline-block"
+              onClick={() => openProductModal(product)}
+              aria-label={`Open larger image for ${product.name}`}
+            >
+              {image ? (
+                <img
+                  src={image}
+                  alt={product.name}
+                  className="object-contain border border-gray-800 bg-black"
+                  style={{ width: settings.smallProductDisplaySizePx, height: settings.smallProductDisplaySizePx }}
+                  onError={(event) => {
+                    const img = event.currentTarget;
+                    if (img.src.endsWith(fallbackImage)) return;
+                    img.src = fallbackImage;
+                  }}
+                />
+              ) : (
+                <div
+                  className="bg-gray-900 border border-gray-800 flex items-center justify-center text-xs text-gray-500"
+                  style={{ width: settings.smallProductDisplaySizePx, height: settings.smallProductDisplaySizePx }}
+                >
+                  No image
+                </div>
+              )}
+            </button>
+            {image && <p className="text-xs text-motorsport-yellow mt-2">Click to enlarge</p>}
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-[1fr_220px] gap-4 items-start">
+            <div>
+              {isAuthenticated ? (
+                <input
+                  className="w-full bg-black border border-gray-700 px-3 py-2 text-xl font-heading font-bold mb-2"
+                  value={product.name}
+                  onChange={(event) =>
+                    setProducts((previous) =>
+                      previous.map((item) =>
+                        item.id === product.id ? { ...item, name: event.target.value } : item,
+                      ),
+                    )
+                  }
+                  onBlur={() => void updateProduct(product, { name: product.name })}
+                />
+              ) : (
+                <h3 className="text-2xl font-heading font-bold mb-1">{product.name}</h3>
+              )}
+              <p className="text-sm text-gray-500 mb-2">SKU: {product.sku || 'N/A'}</p>
+              {product.unitsPerPackage !== null && product.unitsPerPackage !== undefined && (
+                <p className="text-xs text-gray-400 mb-2">Units per package: {product.unitsPerPackage}</p>
+              )}
+
+              {isAuthenticated ? (
+                <textarea
+                  className="w-full bg-black border border-gray-700 px-3 py-2 text-sm text-gray-200 mb-3"
+                  value={product.description}
+                  rows={3}
+                  onChange={(event) =>
+                    setProducts((previous) =>
+                      previous.map((item) =>
+                        item.id === product.id ? { ...item, description: event.target.value } : item,
+                      ),
+                    )
+                  }
+                  onBlur={() => void updateProduct(product, { description: product.description })}
+                />
+              ) : (
+                <p className="text-gray-300 text-sm mb-3">{product.description || 'No description yet.'}</p>
+              )}
+
+              <Link to={`/brands/piaa/catalog/product/${product.id}`} className="text-xs text-motorsport-yellow hover:underline">
+                Open product page
+              </Link>
+            </div>
+
+            <div className="md:text-right">
+              {isAuthenticated ? (
+                <input
+                  className="w-full md:w-40 bg-black border border-gray-700 px-3 py-2 text-motorsport-yellow font-semibold"
+                  value={product.price ?? ''}
+                  type="number"
+                  step="0.01"
+                  placeholder="Price"
+                  onChange={(event) => {
+                    const raw = event.target.value;
+                    setProducts((previous) =>
+                      previous.map((item) =>
+                        item.id === product.id
+                          ? { ...item, price: raw === '' ? null : Number(raw) }
+                          : item,
+                      ),
+                    );
+                  }}
+                  onBlur={() => void updateProduct(product, { price: product.price })}
+                />
+              ) : (
+                <p className="text-motorsport-yellow font-semibold">{formatPrice(product.price)}</p>
+              )}
+
+              {!isAuthenticated && (
+                <div className="mt-3 border border-gray-700 bg-gray-950 p-3 text-left">
+                  <label className="flex items-center gap-2 text-sm text-gray-200">
+                    <input
+                      type="checkbox"
+                      checked={getProductQuantity(product.id) > 0}
+                      onChange={(event) => setProductQuantity(product, event.target.checked ? 1 : 0)}
+                    />
+                    Add to cart
+                  </label>
+
+                  <div className="mt-2 flex items-center justify-between gap-2">
+                    <span className="text-xs text-gray-400">Quantity</span>
+                    <div className="inline-flex items-center border border-gray-600">
+                      <button
+                        type="button"
+                        className="px-2 py-1 text-gray-200 hover:bg-gray-800"
+                        onClick={() =>
+                          setProductQuantity(product, Math.max(0, getProductQuantity(product.id) - 1))
+                        }
+                        aria-label={`Decrease quantity for ${product.name}`}
+                      >
+                        <ChevronDown size={14} />
+                      </button>
+                      <span className="min-w-8 text-center text-sm">{getProductQuantity(product.id)}</span>
+                      <button
+                        type="button"
+                        className="px-2 py-1 text-gray-200 hover:bg-gray-800"
+                        onClick={() => setProductQuantity(product, getProductQuantity(product.id) + 1)}
+                        aria-label={`Increase quantity for ${product.name}`}
+                      >
+                        <ChevronUp size={14} />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {product.folderName && <p className="text-xs text-gray-500 mt-2">Folder: {product.folderName}</p>}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div className="min-h-screen bg-black">
@@ -212,146 +400,20 @@ const PIAACatalogPage: React.FC = () => {
                   )}
 
                   {!loading &&
-                    visibleProducts.map((product) => {
-                      const image = imageAssetService.resolveImage(product.imageReference);
-
-                      return (
-                        <div key={product.id} className="border border-gray-800 bg-black p-4 md:p-5">
-                          <div className="grid grid-cols-1 md:grid-cols-[120px_1fr] gap-4">
-                            <div>
-                              <Link to={`/brands/piaa/catalog/product/${product.id}`} className="inline-block">
-                                {image ? (
-                                  <img
-                                    src={image}
-                                    alt={product.name}
-                                    className="object-cover border border-gray-800"
-                                    style={{ width: settings.smallProductDisplaySizePx, height: settings.smallProductDisplaySizePx }}
-                                  />
-                                ) : (
-                                  <div
-                                    className="bg-gray-900 border border-gray-800 flex items-center justify-center text-xs text-gray-500"
-                                    style={{ width: settings.smallProductDisplaySizePx, height: settings.smallProductDisplaySizePx }}
-                                  >
-                                    No image
-                                  </div>
-                                )}
-                              </Link>
-                            </div>
-                            <div className="grid grid-cols-1 md:grid-cols-[1fr_220px] gap-4 items-start">
-                              <div>
-                                {isAuthenticated ? (
-                                  <input
-                                    className="w-full bg-black border border-gray-700 px-3 py-2 text-xl font-heading font-bold mb-2"
-                                    value={product.name}
-                                    onChange={(event) =>
-                                      setProducts((previous) =>
-                                        previous.map((item) =>
-                                          item.id === product.id ? { ...item, name: event.target.value } : item,
-                                        ),
-                                      )
-                                    }
-                                    onBlur={() => void updateProduct(product, { name: product.name })}
-                                  />
-                                ) : (
-                                  <h3 className="text-2xl font-heading font-bold mb-1">{product.name}</h3>
-                                )}
-                                <p className="text-sm text-gray-500 mb-2">SKU: {product.sku || 'N/A'}</p>
-
-                                {isAuthenticated ? (
-                                  <textarea
-                                    className="w-full bg-black border border-gray-700 px-3 py-2 text-sm text-gray-200 mb-3"
-                                    value={product.description}
-                                    rows={3}
-                                    onChange={(event) =>
-                                      setProducts((previous) =>
-                                        previous.map((item) =>
-                                          item.id === product.id ? { ...item, description: event.target.value } : item,
-                                        ),
-                                      )
-                                    }
-                                    onBlur={() => void updateProduct(product, { description: product.description })}
-                                  />
-                                ) : (
-                                  <p className="text-gray-300 text-sm mb-3">{product.description || 'No description yet.'}</p>
-                                )}
-
-                                <Link
-                                  to={`/brands/piaa/catalog/product/${product.id}`}
-                                  className="text-xs text-motorsport-yellow hover:underline"
-                                >
-                                  Open product page
-                                </Link>
+                    (activeSection === 'Wiper Blades'
+                      ? visibleWiperGroups.map((group) => (
+                          <div key={group.label} className="space-y-3 mb-5">
+                            <h3 className="text-xl font-heading font-bold text-motorsport-yellow">{group.label}</h3>
+                            {group.products.length === 0 ? (
+                              <div className="bg-gray-800/50 border border-gray-700 p-4 rounded text-gray-400 text-sm">
+                                No products in this subcategory.
                               </div>
-
-                              <div className="md:text-right">
-                                {isAuthenticated ? (
-                                  <input
-                                    className="w-full md:w-40 bg-black border border-gray-700 px-3 py-2 text-motorsport-yellow font-semibold"
-                                    value={product.price ?? ''}
-                                    type="number"
-                                    step="0.01"
-                                    placeholder="Price"
-                                    onChange={(event) => {
-                                      const raw = event.target.value;
-                                      setProducts((previous) =>
-                                        previous.map((item) =>
-                                          item.id === product.id
-                                            ? { ...item, price: raw === '' ? null : Number(raw) }
-                                            : item,
-                                        ),
-                                      );
-                                    }}
-                                    onBlur={() => void updateProduct(product, { price: product.price })}
-                                  />
-                                ) : (
-                                  <p className="text-motorsport-yellow font-semibold">{formatPrice(product.price)}</p>
-                                )}
-
-                                {!isAuthenticated && (
-                                  <div className="mt-3 border border-gray-700 bg-gray-950 p-3 text-left">
-                                    <label className="flex items-center gap-2 text-sm text-gray-200">
-                                      <input
-                                        type="checkbox"
-                                        checked={getProductQuantity(product.id) > 0}
-                                        onChange={(event) => setProductQuantity(product, event.target.checked ? 1 : 0)}
-                                      />
-                                      Add to cart
-                                    </label>
-
-                                    <div className="mt-2 flex items-center justify-between gap-2">
-                                      <span className="text-xs text-gray-400">Quantity</span>
-                                      <div className="inline-flex items-center border border-gray-600">
-                                        <button
-                                          type="button"
-                                          className="px-2 py-1 text-gray-200 hover:bg-gray-800"
-                                          onClick={() =>
-                                            setProductQuantity(product, Math.max(0, getProductQuantity(product.id) - 1))
-                                          }
-                                          aria-label={`Decrease quantity for ${product.name}`}
-                                        >
-                                          <ChevronDown size={14} />
-                                        </button>
-                                        <span className="min-w-8 text-center text-sm">{getProductQuantity(product.id)}</span>
-                                        <button
-                                          type="button"
-                                          className="px-2 py-1 text-gray-200 hover:bg-gray-800"
-                                          onClick={() => setProductQuantity(product, getProductQuantity(product.id) + 1)}
-                                          aria-label={`Increase quantity for ${product.name}`}
-                                        >
-                                          <ChevronUp size={14} />
-                                        </button>
-                                      </div>
-                                    </div>
-                                  </div>
-                                )}
-
-                                {product.folderName && <p className="text-xs text-gray-500 mt-2">Folder: {product.folderName}</p>}
-                              </div>
-                            </div>
+                            ) : (
+                              group.products.map((product) => renderProductCard(product))
+                            )}
                           </div>
-                        </div>
-                      );
-                    })}
+                        ))
+                      : visibleProducts.map((product) => renderProductCard(product)))}
                 </div>
 
                 {!loading && visibleProducts.length > 0 && (
@@ -367,6 +429,91 @@ const PIAACatalogPage: React.FC = () => {
           </div>
         </div>
       </section>
+
+      {(() => {
+        if (!modalProductId) {
+          return null;
+        }
+
+        const modalProduct = products.find((item) => item.id === modalProductId);
+        if (!modalProduct) {
+          return null;
+        }
+
+        const imageReferences = Array.from(new Set([modalProduct.imageReference, ...(modalProduct.galleryImageReferences ?? [])].filter(Boolean)));
+        if (imageReferences.length === 0) {
+          return null;
+        }
+
+        const safeIndex = Math.max(0, Math.min(modalImageIndex, imageReferences.length - 1));
+        const activeReference = imageReferences[safeIndex] ?? '';
+        const activeImage = imageAssetService.resolveImage(activeReference);
+        const canNavigate = imageReferences.length > 1;
+
+        const goPrevious = () => {
+          setModalImageIndex((previous) => (previous - 1 + imageReferences.length) % imageReferences.length);
+        };
+
+        const goNext = () => {
+          setModalImageIndex((previous) => (previous + 1) % imageReferences.length);
+        };
+
+        return (
+          <div className="fixed inset-0 z-50 bg-black/85 flex items-center justify-center p-4">
+            <div className="relative border border-gray-700 bg-black p-4 md:p-5 max-w-full">
+              <button
+                type="button"
+                onClick={closeProductModal}
+                className="absolute -top-3 -right-3 rounded-full bg-gray-900 border border-gray-600 p-2 text-gray-200 hover:text-white"
+                aria-label="Close product image modal"
+              >
+                <X size={16} />
+              </button>
+
+              <div className="flex items-center justify-between mb-3 gap-4">
+                <p className="text-sm text-gray-300">{modalProduct.name}</p>
+                <p className="text-xs text-gray-500">
+                  {safeIndex + 1}/{imageReferences.length}
+                </p>
+              </div>
+
+              {activeImage ? (
+                <img
+                  src={activeImage}
+                  alt={modalProduct.name}
+                  className="object-contain border border-gray-800 bg-black"
+                  style={{ width: settings.productModalDisplaySizePx, height: settings.productModalDisplaySizePx, maxWidth: '88vw', maxHeight: '78vh' }}
+                  onError={(event) => {
+                    const img = event.currentTarget;
+                    if (img.src.endsWith(fallbackImage)) return;
+                    img.src = fallbackImage;
+                  }}
+                />
+              ) : (
+                <div
+                  className="border border-gray-800 bg-gray-900 text-gray-500 flex items-center justify-center"
+                  style={{ width: settings.productModalDisplaySizePx, height: settings.productModalDisplaySizePx, maxWidth: '88vw', maxHeight: '78vh' }}
+                >
+                  No image
+                </div>
+              )}
+
+              {canNavigate && (
+                <div className="mt-4 flex items-center justify-between gap-3">
+                  <button type="button" onClick={goPrevious} className="btn-secondary inline-flex items-center gap-2">
+                    <ChevronLeft size={16} />
+                    Previous
+                  </button>
+                  <button type="button" onClick={goNext} className="btn-secondary inline-flex items-center gap-2">
+                    Next
+                    <ChevronRight size={16} />
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 };

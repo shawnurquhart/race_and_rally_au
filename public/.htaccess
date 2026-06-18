@@ -1,0 +1,15 @@
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+
+  # Always let backend API PHP endpoints execute directly (do not route to SPA).
+  RewriteRule ^assets/backend/api/ - [L]
+  RewriteRule ^backend/api/ /assets/backend/api/$1 [L]
+
+  # Existing files/directories are served normally.
+  RewriteCond %{REQUEST_FILENAME} -f [OR]
+  RewriteCond %{REQUEST_FILENAME} -d
+  RewriteRule ^ - [L]
+
+  # SPA fallback.
+  RewriteRule ^ index.html [L]
+</IfModule>

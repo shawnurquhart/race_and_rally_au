@@ -95,7 +95,7 @@ const HomePage: React.FC = () => {
                 Motorsport-Grade Equipment, Australian Expertise
               </h2>
               <p className="text-gray-300 text-lg mb-6">
-                Race & Rally Australia is built on a foundation of professional motorsport
+                Race and Rally Australia is built on a foundation of professional motorsport
                 experience. We understand the unique demands of Australian terrain and climate,
                 and we source equipment that meets the highest standards of performance and safety.
               </p>
@@ -140,12 +140,12 @@ const HomePage: React.FC = () => {
         </div>
       </section>
 
-      {/* Why Race & Rally Australia - Value Tiles */}
+      {/* Why Race and Rally Australia - Value Tiles */}
       <section className="section-padding bg-black">
         <div className="container-narrow px-4 md:px-6">
           <div className="text-center mb-12">
             <h2 className="text-3xl md:text-4xl font-heading font-bold mb-4">
-              Why Race & Rally Australia
+              Why Race and Rally Australia
             </h2>
             <p className="text-gray-400 max-w-2xl mx-auto">
               Four pillars of excellence that define our commitment to professional motorsport.
@@ -198,7 +198,7 @@ const HomePage: React.FC = () => {
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
-            {['Lighting', 'Accessories', 'Safety Gear', 'Merchandise'].map((category) => (
+            {['PIAA Lighting', 'Accessories', 'Safety Gear', 'Merchandise'].map((category) => (
               <div key={category} className="bg-gray-900 border border-gray-800 p-8 text-center group hover:border-motorsport-yellow transition-colors">
                 <div className="bg-gray-800 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:bg-gray-700 transition-colors">
                   <Award className="text-motorsport-yellow" size={28} />
@@ -274,13 +274,13 @@ const HomePage: React.FC = () => {
                     <div className="w-full h-full bg-black/30 flex items-center justify-center">
                       <div className="text-center">
                         <div className="text-4xl font-bold text-white mb-2">PIAA</div>
-                        <div className="text-motorsport-yellow">Premium Lighting Solutions</div>
+                        <div className="text-motorsport-yellow">Premium High Performance Lighting Solutions.</div>
                       </div>
                     </div>
                   </div>
                 </div>
                 <p className="text-gray-400 text-center">
-                  Official partner of Race & Rally Australia. Professional-grade lighting for
+                  Official partner of Race and Rally Australia. Professional-grade lighting for
                   motorsport applications.
                 </p>
               </div>
@@ -337,7 +337,7 @@ const HomePage: React.FC = () => {
                   {
                     date: '12 December 2024',
                     title: 'New Partnership with PIAA',
-                    summary: 'Race & Rally Australia announces official partnership with premium lighting manufacturer.'
+                    summary: 'Race and Rally Australia announces official partnership with premium lighting manufacturer.'
                   },
                   {
                     date: '5 December 2024',

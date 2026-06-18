@@ -17,6 +17,7 @@ Windows / PowerShell rules (critical)
 Tooling/testing constraints
     Do not attempt to use the internal browser function for testing (it doesn’t work; per your note dated 17-Aug-2025).
     Do not automatically start dev servers (e.g., don’t run npm run dev on your behalf); assume you will run tests manually when ready.
+    Do not append or suggest this command at task completion unless explicitly requested by the user: start https://your-domain.example/admin/settings
 
 Command hygiene checklist
     Scan commands for && and replace with ;.

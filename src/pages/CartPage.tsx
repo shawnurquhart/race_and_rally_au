@@ -15,6 +15,7 @@ const CartPage: React.FC = () => {
   const navigate = useNavigate();
   const [cart, setCart] = useState<CartState>(() => cartService.getCart());
   const [productMap, setProductMap] = useState<Record<string, Product>>({});
+  const fallbackImage = imageAssetService.getFallbackImagePath();
 
   const syncCart = () => setCart(cartService.getCart());
 
@@ -87,7 +88,16 @@ const CartPage: React.FC = () => {
                     <div className="grid grid-cols-1 md:grid-cols-[96px_1fr] gap-4 items-start">
                       <div>
                         {image ? (
-                          <img src={image} alt={item.name} className="w-24 h-24 object-cover border border-gray-800" />
+                          <img
+                            src={image}
+                            alt={item.name}
+                            className="w-24 h-24 object-cover border border-gray-800"
+                            onError={(event) => {
+                              const img = event.currentTarget;
+                              if (img.src.endsWith(fallbackImage)) return;
+                              img.src = fallbackImage;
+                            }}
+                          />
                         ) : (
                           <div className="w-24 h-24 bg-gray-900 border border-gray-800 flex items-center justify-center text-xs text-gray-500">
                             No image

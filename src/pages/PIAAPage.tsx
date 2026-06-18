@@ -79,10 +79,12 @@ const PIAAPage: React.FC = () => {
           >
             <div className="absolute inset-0 bg-gradient-to-r from-black/70 to-transparent" />
             <div className="relative z-10 p-8 md:p-12 lg:p-16 max-w-3xl">
-              <p className="text-motorsport-yellow text-sm uppercase tracking-[0.24em] mb-4">PIAA Lighting</p>
-              <h1 className="text-4xl md:text-5xl lg:text-6xl font-heading font-bold leading-tight mb-4">
-                Performance lighting for race, rally & off-road
+              <h1 className="text-4xl md:text-5xl lg:text-6xl font-heading font-bold leading-tight mb-3 text-motorsport-yellow">
+                PIAA Lighting
               </h1>
+              <p className="text-2xl md:text-4xl font-heading font-semibold leading-tight mb-4 text-white">
+                Performance lighting for race, rally & off-road
+              </p>
               <p className="text-gray-200 text-base md:text-lg max-w-2xl">
                 Enter the PIAA hub to shop proven products, explore technical guidance, and discover real-world builds.
                 This page connects every major PIAA content area in one branded experience.

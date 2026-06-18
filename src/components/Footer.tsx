@@ -1,18 +1,47 @@
 import React from 'react';
 import { Instagram, Facebook, Youtube } from 'lucide-react';
+import { pageStatusService, PAGE_STATUS_UPDATED_EVENT } from '@/services/pageStatusService';
+import { getDefaultOnlineByRoute } from '@/config/pageStatusRegistry';
 
 const Footer: React.FC = () => {
+  const [onlineByRoute, setOnlineByRoute] = React.useState<Map<string, boolean>>(() => getDefaultOnlineByRoute());
+
+  React.useEffect(() => {
+    const syncPageAvailability = async () => {
+      try {
+        const rows = await pageStatusService.list();
+        const next = getDefaultOnlineByRoute();
+        rows.forEach((row) => {
+          if (row.kind === 'page' && row.routePath) {
+            next.set(row.routePath, row.isOnline);
+          }
+        });
+        setOnlineByRoute(next);
+      } catch {
+        // keep defaults
+      }
+    };
+
+    void syncPageAvailability();
+    window.addEventListener(PAGE_STATUS_UPDATED_EVENT, syncPageAvailability);
+    return () => {
+      window.removeEventListener(PAGE_STATUS_UPDATED_EVENT, syncPageAvailability);
+    };
+  }, []);
+
+  const isOnline = (routePath: string): boolean => onlineByRoute.get(routePath) !== false;
+
   const footerLinks = [
     { label: 'Home', href: '/' },
-    { label: 'About', href: '/about' },
-    { label: 'Gear', href: '/gear' },
-    { label: 'Brands', href: '/brands' },
-    { label: 'Events', href: '/events' },
-    { label: 'News', href: '/news' },
-    { label: 'Gallery', href: '/gallery' },
-    { label: 'Contact', href: '/contact' },
-    { label: 'Privacy Policy', href: '/privacy' },
-    { label: 'Terms of Service', href: '/terms' },
+    ...(isOnline('/about') ? [{ label: 'About', href: '/about' }] : []),
+    ...(isOnline('/gear') ? [{ label: 'Gear', href: '/gear' }] : []),
+    ...(isOnline('/brands') ? [{ label: 'Brands', href: '/brands' }] : []),
+    ...(isOnline('/events') ? [{ label: 'Events', href: '/events' }] : []),
+    ...(isOnline('/news') ? [{ label: 'News', href: '/news' }] : []),
+    ...(isOnline('/gallery') ? [{ label: 'Gallery', href: '/gallery' }] : []),
+    ...(isOnline('/contact') ? [{ label: 'Contact', href: '/contact' }] : []),
+    ...(isOnline('/terms') ? [{ label: 'Privacy Policy', href: '/terms#privacy-policy' }] : []),
+    ...(isOnline('/terms') ? [{ label: 'Terms & Conditions', href: '/terms' }] : []),
   ];
 
   const socialLinks = [
@@ -29,7 +58,7 @@ const Footer: React.FC = () => {
             {/* Brand Column */}
             <div className="md:col-span-1">
               <h3 className="text-2xl font-heading font-bold mb-4">
-                Race & Rally <span className="text-motorsport-yellow">Australia</span>
+                Race and Rally <span className="text-motorsport-yellow">Australia</span>
               </h3>
               <p className="text-gray-400 mb-6">
                 Professional motorsport equipment for Australian conditions.
@@ -89,9 +118,7 @@ const Footer: React.FC = () => {
             <div>
               <h4 className="font-heading font-bold text-lg mb-4">Contact</h4>
               <address className="not-italic text-gray-400 space-y-2">
-                <p>123 Motorsport Way</p>
-                <p>Melbourne, VIC 3000</p>
-                <p>Australia</p>
+                <p>Online Sales via Canberra based Warehousing</p>
                 <p className="mt-4">
                   <a href="mailto:sales@raceandrallyaustralia.com.au" className="hover:text-motorsport-yellow">
                     sales@raceandrallyaustralia.com.au
@@ -108,7 +135,7 @@ const Footer: React.FC = () => {
 
           {/* Copyright */}
           <div className="border-t border-gray-800 mt-8 pt-8 text-center text-gray-500 text-sm">
-            <p>© 2025 Race & Rally Australia. All rights reserved.</p>
+            <p>© 2025 Race and Rally Australia. All rights reserved.</p>
             <p className="mt-2">
               Professional motorsport equipment brand. This is a pre-commerce website stage.
               {/* TODO: Stage 2 - Add e-commerce functionality */}

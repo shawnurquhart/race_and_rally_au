@@ -1,6 +1,7 @@
 import type { Product, ProductBrand, ProductFilters } from '@/types/product';
 import { PIAA_CATEGORIES } from '@/types/product';
 import { LocalProductRepository } from '@/repositories/localProductRepository';
+import { ApiProductRepository } from '@/repositories/apiProductRepository';
 import type { ProductRepository } from '@/repositories/productRepository';
 
 export interface ProductGroup {
@@ -54,4 +55,7 @@ class ProductService {
   }
 }
 
-export const productService = new ProductService(new LocalProductRepository());
+const useRemoteApi = String(import.meta.env.VITE_USE_REMOTE_API ?? 'false') === 'true';
+const repo: ProductRepository = useRemoteApi ? new ApiProductRepository() : new LocalProductRepository();
+
+export const productService = new ProductService(repo);

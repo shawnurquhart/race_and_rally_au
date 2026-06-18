@@ -3,6 +3,62 @@ import type { ProductRepository } from './productRepository';
 
 const STORAGE_KEY = 'rra_dev_products_v1';
 
+const normalizeSkuKey = (value: string): string => {
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return '';
+  }
+
+  const firstToken = trimmed.split(/\s+/)[0] ?? '';
+  return firstToken.trim().toLowerCase();
+};
+
+const isValidPiaaSku = (value: string): boolean => {
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return false;
+  }
+
+  const noSpaces = !/\s/.test(trimmed);
+  const hasAllowedChars = /^[A-Za-z0-9]+(?:-[A-Za-z0-9]+)*$/.test(trimmed);
+  const hasDigit = /\d/.test(trimmed);
+  const hasLetter = /[A-Za-z]/.test(trimmed);
+
+  return noSpaces && hasAllowedChars && hasDigit && hasLetter;
+};
+
+const dedupeProducts = (products: Product[]): Product[] => {
+  const byCompositeKey = new Map<string, Product>();
+
+  for (const product of products) {
+    const skuKey = normalizeSkuKey(product.sku);
+    if (product.brand === 'piaa' && !isValidPiaaSku(skuKey.toUpperCase())) {
+      continue;
+    }
+
+    const compositeKey = `${product.brand}::${skuKey || product.id}`;
+    const existing = byCompositeKey.get(compositeKey);
+
+    const candidate: Product = {
+      ...product,
+      sku: skuKey ? (product.sku.trim().split(/\s+/)[0] ?? product.sku).trim() : product.sku,
+    };
+
+    if (!existing) {
+      byCompositeKey.set(compositeKey, candidate);
+      continue;
+    }
+
+    const existingUpdated = Date.parse(existing.updatedAt || '') || 0;
+    const candidateUpdated = Date.parse(candidate.updatedAt || '') || 0;
+    if (candidateUpdated >= existingUpdated) {
+      byCompositeKey.set(compositeKey, candidate);
+    }
+  }
+
+  return Array.from(byCompositeKey.values());
+};
+
 const readProducts = (): Product[] => {
   const raw = localStorage.getItem(STORAGE_KEY);
   if (!raw) {
@@ -11,14 +67,14 @@ const readProducts = (): Product[] => {
 
   try {
     const parsed = JSON.parse(raw) as Product[];
-    return Array.isArray(parsed) ? parsed : [];
+    return Array.isArray(parsed) ? dedupeProducts(parsed) : [];
   } catch {
     return [];
   }
 };
 
 const writeProducts = (products: Product[]): void => {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(products));
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(dedupeProducts(products)));
 };
 
 const matchesFilters = (product: Product, filters?: ProductFilters): boolean => {
@@ -63,13 +119,40 @@ export class LocalProductRepository implements ProductRepository {
 
   async upsertMany(productsToUpsert: Product[]): Promise<void> {
     const existing = readProducts();
-    const byId = new Map(existing.map((product) => [product.id, product]));
+    const byCompositeKey = new Map<string, Product>(
+      existing.map((product): [string, Product] => {
+        const skuKey = normalizeSkuKey(product.sku);
+        return [`${product.brand}::${skuKey || product.id}`, product];
+      }),
+    );
 
     productsToUpsert.forEach((product) => {
-      byId.set(product.id, product);
+      const skuKey = normalizeSkuKey(product.sku);
+      const key = `${product.brand}::${skuKey || product.id}`;
+      const existingMatch = byCompositeKey.get(key);
+
+      if (existingMatch) {
+        byCompositeKey.set(key, {
+          ...existingMatch,
+          ...product,
+          id: existingMatch.id,
+          sku: skuKey ? (product.sku.trim().split(/\s+/)[0] ?? product.sku).trim() : product.sku,
+          imageReference: product.imageReference || existingMatch.imageReference,
+          galleryImageReferences:
+            product.galleryImageReferences && product.galleryImageReferences.length > 0
+              ? product.galleryImageReferences
+              : existingMatch.galleryImageReferences,
+          folderName: product.folderName || existingMatch.folderName,
+        });
+      } else {
+        byCompositeKey.set(key, {
+          ...product,
+          sku: skuKey ? (product.sku.trim().split(/\s+/)[0] ?? product.sku).trim() : product.sku,
+        });
+      }
     });
 
-    writeProducts(Array.from(byId.values()));
+    writeProducts(Array.from(byCompositeKey.values()));
   }
 
   async remove(productId: string): Promise<void> {

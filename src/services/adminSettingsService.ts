@@ -4,6 +4,7 @@ export const ADMIN_SETTINGS_UPDATED_EVENT = 'rra_admin_settings_updated';
 export interface AdminUploadSettings {
   smallProductDisplaySizePx: number;
   productDetailDisplaySizePx: number;
+  productModalDisplaySizePx: number;
   maxImageSizeKb: number;
   showGearOnMenu: boolean;
   showBrandsOnMenu: boolean;
@@ -12,6 +13,7 @@ export interface AdminUploadSettings {
 const DEFAULT_SETTINGS: AdminUploadSettings = {
   smallProductDisplaySizePx: 100,
   productDetailDisplaySizePx: 400,
+  productModalDisplaySizePx: 800,
   maxImageSizeKb: 200,
   showGearOnMenu: true,
   showBrandsOnMenu: true,
@@ -22,6 +24,7 @@ const clamp = (value: number, min: number, max: number): number => Math.min(max,
 const sanitize = (value: Partial<AdminUploadSettings> | null | undefined): AdminUploadSettings => ({
   smallProductDisplaySizePx: clamp(Number(value?.smallProductDisplaySizePx ?? DEFAULT_SETTINGS.smallProductDisplaySizePx), 60, 300),
   productDetailDisplaySizePx: clamp(Number(value?.productDetailDisplaySizePx ?? DEFAULT_SETTINGS.productDetailDisplaySizePx), 180, 900),
+  productModalDisplaySizePx: clamp(Number(value?.productModalDisplaySizePx ?? DEFAULT_SETTINGS.productModalDisplaySizePx), 320, 1600),
   maxImageSizeKb: clamp(Number(value?.maxImageSizeKb ?? DEFAULT_SETTINGS.maxImageSizeKb), 80, 2048),
   showGearOnMenu: value?.showGearOnMenu ?? DEFAULT_SETTINGS.showGearOnMenu,
   showBrandsOnMenu: value?.showBrandsOnMenu ?? DEFAULT_SETTINGS.showBrandsOnMenu,

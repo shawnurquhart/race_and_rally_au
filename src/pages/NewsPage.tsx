@@ -52,7 +52,7 @@ const NewsPage: React.FC = () => {
                 date: '12 December 2024',
                 category: 'Partnership',
                 title: 'New Partnership with PIAA',
-                summary: 'Race & Rally Australia announces official partnership with premium lighting manufacturer PIAA, bringing world-class lighting solutions to the Australian motorsport community.',
+                summary: 'Race and Rally Australia announces official partnership with premium lighting manufacturer PIAA, bringing world-class lighting solutions to the Australian motorsport community.',
                 image: 'https://images.unsplash.com/photo-1593941707882-a5bba5338fe2?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80'
               },
               {

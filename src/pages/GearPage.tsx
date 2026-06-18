@@ -48,10 +48,10 @@ const GearPage: React.FC = () => {
           
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {[
-              { icon: Zap, title: 'Lighting', description: 'Premium LED and HID lighting solutions for all conditions' },
+              { icon: Zap, title: 'PIAA Lighting', description: 'Premium LED and HID lighting solutions for all conditions' },
               { icon: Package, title: 'Accessories', description: 'Essential equipment and mounting solutions' },
               { icon: Shield, title: 'Safety Gear', description: 'Professional-grade safety equipment and protection' },
-              { icon: Award, title: 'Merchandise', description: 'Official Race & Rally Australia branded items' }
+              { icon: Award, title: 'Merchandise', description: 'Official Race and Rally Australia branded items' }
             ].map((category) => (
               <div key={category.title} className="bg-gray-900 border border-gray-800 p-8 hover:border-motorsport-yellow/50 transition-colors">
                 <div className="bg-gray-800 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">

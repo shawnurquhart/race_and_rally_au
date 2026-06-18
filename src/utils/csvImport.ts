@@ -3,7 +3,11 @@ export interface ParsedCsvData {
   rows: Record<string, string>[];
 }
 
-const parseCsvLine = (line: string): string[] => {
+const parseDelimitedLine = (line: string, delimiter: ',' | '\t'): string[] => {
+  if (delimiter === '\t') {
+    return line.split('\t').map((value) => value.trim());
+  }
+
   const result: string[] = [];
   let current = '';
   let inQuotes = false;
@@ -22,7 +26,7 @@ const parseCsvLine = (line: string): string[] => {
       continue;
     }
 
-    if (char === ',' && !inQuotes) {
+    if (char === delimiter && !inQuotes) {
       result.push(current.trim());
       current = '';
       continue;
@@ -38,16 +42,18 @@ const parseCsvLine = (line: string): string[] => {
 export const parseCsv = (content: string): ParsedCsvData => {
   const lines = content
     .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter((line) => line.length > 0);
+    .filter((line) => line.trim().length > 0);
 
   if (lines.length === 0) {
     return { headers: [], rows: [] };
   }
 
-  const headers = parseCsvLine(lines[0]);
+  const headerLine = lines[0];
+  const delimiter: ',' | '\t' = (headerLine.match(/\t/g)?.length ?? 0) > (headerLine.match(/,/g)?.length ?? 0) ? '\t' : ',';
+
+  const headers = parseDelimitedLine(headerLine, delimiter);
   const rows = lines.slice(1).map((line) => {
-    const values = parseCsvLine(line);
+    const values = parseDelimitedLine(line, delimiter);
     return headers.reduce<Record<string, string>>((record, header, index) => {
       record[header] = values[index] ?? '';
       return record;

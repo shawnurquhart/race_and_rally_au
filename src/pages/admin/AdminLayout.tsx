@@ -14,8 +14,13 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ title, children }) => {
 
   const links = [
     { label: 'Dashboard', to: '/admin' },
-    { label: 'Product Upload', to: '/admin/upload' },
-    { label: 'Product Review', to: '/admin/review' },
+    { label: 'Sales', to: '/admin/sales' },
+    { label: 'Payment Testing', to: '/admin/payment-testing' },
+    { label: 'Traffic Reporting', to: '/admin/traffic-reporting' },
+    { label: 'Site Reporting', to: '/admin/site-reporting' },
+    { label: 'Page Status & Availability', to: '/admin/page-status-availability' },
+    { label: 'Contact Submissions', to: '/admin/contact-submissions' },
+    { label: 'PIAA Products Display & Maintenance', to: '/admin/piaa-maintenance' },
     { label: 'Settings', to: '/admin/settings' },
   ];
 

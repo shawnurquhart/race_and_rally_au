@@ -1,10 +1,11 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { devAdminAuth } from './devAdminAuth';
+import { adminAuthService } from '@/services/adminAuthService';
 
 interface AdminAuthContextValue {
   isAuthenticated: boolean;
-  login: (username: string, password: string) => boolean;
-  logout: () => void;
+  login: (username: string, password: string) => Promise<boolean>;
+  logout: () => Promise<void>;
 }
 
 const AdminAuthContext = createContext<AdminAuthContextValue | undefined>(undefined);
@@ -13,17 +14,30 @@ export const AdminAuthProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   useEffect(() => {
-    setIsAuthenticated(devAdminAuth.isAuthenticated());
+    if (devAdminAuth.isLocalDevEnabled()) {
+      setIsAuthenticated(devAdminAuth.isAuthenticated());
+      return;
+    }
+
+    void adminAuthService.status().then((authenticated) => {
+      setIsAuthenticated(authenticated);
+    });
   }, []);
 
-  const login = useCallback((username: string, password: string) => {
-    const didLogin = devAdminAuth.login(username, password);
+  const login = useCallback(async (username: string, password: string) => {
+    const didLogin = devAdminAuth.isLocalDevEnabled()
+      ? devAdminAuth.login(username, password)
+      : await adminAuthService.login(username, password);
     setIsAuthenticated(didLogin);
     return didLogin;
   }, []);
 
-  const logout = useCallback(() => {
-    devAdminAuth.logout();
+  const logout = useCallback(async () => {
+    if (devAdminAuth.isLocalDevEnabled()) {
+      devAdminAuth.logout();
+    } else {
+      await adminAuthService.logout();
+    }
     setIsAuthenticated(false);
   }, []);
 

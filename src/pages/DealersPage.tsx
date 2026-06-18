@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 
 interface DealerCard {
   name: string;
@@ -78,9 +79,15 @@ const DealersPage: React.FC = () => {
               <p className="text-motorsport-yellow text-sm uppercase tracking-[0.24em] mb-4">Dealer Network</p>
               <h1 className="text-4xl md:text-5xl font-heading font-bold leading-tight mb-4">Find an authorised dealer</h1>
               <p className="text-gray-200 text-base md:text-lg max-w-2xl">
-                Connect with trusted Race & Rally partners across Australia for installation support, product advice,
+                Connect with trusted Race and Rally partners across Australia for installation support, product advice,
                 and specialist setup recommendations.
               </p>
+              <Link
+                to="/dealer-application"
+                className="btn-secondary inline-flex mt-6 px-5 py-2"
+              >
+                Apply to become a dealer
+              </Link>
             </div>
           </div>
 

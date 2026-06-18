@@ -1,0 +1,12 @@
+Parent Folder/Route,Form / Sub-form / Component,Type,Current Content Snapshot,Status
+/brands/piaa,PIAAPage,Hub Page,Hero + navigation tiles to all PIAA sections,Complete
+/brands/piaa,PIAASubNav,Shared Component,"Section nav: Hub, Catalogue, Find Your Light, Technical, Applications, Spotlight, Digital Catalogue",Complete
+/brands/piaa,PIAATileCard,Shared Component,Reusable tile card for section entry points,Complete
+/brands/piaa,PIAASectionPageShell,Shared Layout,"Common shell with title/intro/back-link/sub-nav for section pages",Complete
+/brands/piaa/catalog,PIAACatalogPage,Sub-form/Page,"Category listing, folder filters, product cards, cart integration, admin inline editing",Complete
+/brands/piaa/catalog/product/:productId,PIAAProductPage,Sub-form/Page,"Product detail, gallery handling, cart qty, admin edit/save",Complete
+/brands/piaa/find-your-light,PIAAFindYourLightPage,Sub-form/Page,"Guided selector scaffold (vehicle/use-case/conditions + placeholder recommendations)",Started
+/brands/piaa/technical,PIAATechnicalPage,Sub-form/Page,Technical topics cards with placeholder summaries,Started
+/brands/piaa/applications,PIAAApplicationsPage,Sub-form/Page,"Application/build category cards with placeholder images/copy",Started
+/brands/piaa/spotlight,PIAASpotlightPage,Sub-form/Page,"Featured product layout + campaign blocks, mostly placeholder content",Started
+/brands/piaa/digital-catalogue,PIAADigitalCataloguePage,Sub-form/Page,"Download/viewer/filter/results shells, placeholder controls/content",Started
