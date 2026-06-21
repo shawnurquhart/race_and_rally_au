@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ArrowLeft, CheckCircle2 } from 'lucide-react';
 import { cartService, type CheckoutOrder } from '@/services/cartService';
@@ -20,8 +20,17 @@ const CheckoutPage: React.FC = () => {
   const [receiptOrder, setReceiptOrder] = useState<CheckoutOrder | null>(null);
   const [showCustomerModal, setShowCustomerModal] = useState(false);
   const [paymentBusy, setPaymentBusy] = useState(false);
+  const [paymentEnvironment, setPaymentEnvironment] = useState<'production' | 'sandbox'>('production');
 
   const totals = useMemo(() => cartService.getTotals(cart), [cart]);
+  const isSandboxPayment = paymentEnvironment === 'sandbox';
+
+  useEffect(() => {
+    void tillPayments
+      .diagnostics()
+      .then((diagnostics) => setPaymentEnvironment(diagnostics.config.environment))
+      .catch(() => setPaymentEnvironment('production'));
+  }, []);
 
   const updateCustomer = (field: 'fullName' | 'phone' | 'email' | 'shipToAddress', value: string) => {
     const next = cartService.updateCustomer({ [field]: value });
@@ -95,7 +104,11 @@ const CheckoutPage: React.FC = () => {
     }
 
     setPaymentBusy(true);
-    setMessage('Creating secure Till hosted payment session...');
+    setMessage(
+      isSandboxPayment
+        ? 'Creating Till sandbox test payment session...'
+        : 'Creating secure Till hosted payment session...',
+    );
     const merchantReference = `RRA-${Date.now()}`;
     const response = await tillPayments.createPayment({
       merchantReference,
@@ -341,8 +354,14 @@ const CheckoutPage: React.FC = () => {
             </div>
 
             <button className="btn-primary w-full" onClick={onProceedToPayment} disabled={paymentBusy}>
-              {paymentBusy ? 'Creating Payment...' : 'Proceed to Payment'}
+              {paymentBusy ? 'Creating Payment...' : isSandboxPayment ? 'Sandbox Test Payment' : 'Proceed to Payment'}
             </button>
+
+            {isSandboxPayment ? (
+              <p className="mt-2 border border-yellow-700 bg-yellow-400/10 p-2 text-xs text-yellow-100">
+                Sandbox mode is active. This button creates a Till/Nuvei test payment session only.
+              </p>
+            ) : null}
 
             <button className="btn-secondary w-full mt-3" onClick={onCheckout}>
               Simulate Purchase (Admin/Test)

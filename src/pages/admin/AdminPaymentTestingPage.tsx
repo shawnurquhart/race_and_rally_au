@@ -129,7 +129,7 @@ const AdminPaymentTestingPage: React.FC = () => {
               <textarea className="mt-1 w-full bg-black border border-gray-700 px-3 py-2" value={address} onChange={(e) => setAddress(e.target.value)} />
             </label>
             <button className="btn-primary" onClick={createTestPayment} disabled={busy}>
-              {busy ? 'Creating...' : 'Create Test Payment'}
+              {busy ? 'Creating...' : diagnostics?.config.environment === 'sandbox' ? 'Sandbox Test Payment' : 'Create Test Payment'}
             </button>
             {message && <p className="text-sm text-gray-300">{message}</p>}
           </div>
