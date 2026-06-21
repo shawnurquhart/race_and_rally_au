@@ -1,4 +1,5 @@
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import process from 'node:process';
 import crypto from 'node:crypto';
@@ -79,10 +80,10 @@ const loadRemoteManifest = async (sftp, remoteRoot) => {
 };
 
 const saveRemoteManifest = async (sftp, remoteManifestPath, manifest) => {
-  const tempFile = path.resolve(process.cwd(), 'temp-storage-dev-work', DEPLOY_MANIFEST_NAME);
-  fs.mkdirSync(path.dirname(tempFile), { recursive: true });
+  const tempFile = path.join(os.tmpdir(), `rra-${process.pid}-${DEPLOY_MANIFEST_NAME}`);
   fs.writeFileSync(tempFile, JSON.stringify(manifest, null, 2), 'utf8');
   await sftp.fastPut(tempFile, remoteManifestPath);
+  fs.rmSync(tempFile, { force: true });
   console.log(`[deploy:cpanel] Uploaded ${remoteManifestPath}`);
 };
 
