@@ -7,6 +7,7 @@ export interface TestCustomer {
 }
 
 export const testCustomers: TestCustomer[] = [
+  { fullName: 'Shawn Urquhart', phone: '0417356491', email: 'urquhartdigital@gmail.com', shipToAddress: '12 Parkside Drive\nHopetoun Park VIC 3340', state: 'Victoria' },
   { fullName: 'Ethan Walker', phone: '0499123456', email: 'ethan.walker@racetestingdata.com', shipToAddress: '14 Bayview Street\nSydney NSW 2000', state: 'NSW' },
   { fullName: 'Chloe Bennett', phone: '0499234567', email: 'chloe.bennett@racetestingdata.com', shipToAddress: '88 McLeod Street\nCairns QLD 4870', state: 'QLD' },
   { fullName: 'Liam Harrington', phone: '0499345678', email: 'liam.harrington@racetestingdata.com', shipToAddress: '5 Rundle Mall\nAdelaide SA 5000', state: 'SA' },

@@ -47,6 +47,7 @@ export interface PaymentLogEntry {
 }
 
 export interface TillPublicConfig {
+  environment: 'production' | 'sandbox';
   configured: boolean;
   apiBaseUrl: string;
   merchantId: string;

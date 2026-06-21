@@ -3,6 +3,31 @@ require __DIR__ . '/_bootstrap.php';
 
 $pdo = api_db();
 $cfg = require __DIR__ . '/config.php';
+
+function callback_payment_environment(PDO $pdo): string {
+  try {
+    $stmt = $pdo->prepare('SELECT setting_value FROM app_settings WHERE setting_key = ? LIMIT 1');
+    $stmt->execute(['payment_environment']);
+    $row = $stmt->fetch();
+    return is_array($row) && ($row['setting_value'] ?? '') === 'sandbox' ? 'sandbox' : 'production';
+  } catch (Throwable $e) {
+    return 'production';
+  }
+}
+
+function callback_till_effective_config(array $cfg, string $environment): array {
+  $effective = $cfg;
+  $prefix = $environment === 'sandbox' ? 'till_sandbox_' : 'till_production_';
+  foreach (['shared_secret'] as $key) {
+    $sourceKey = $prefix . $key;
+    if (array_key_exists($sourceKey, $cfg)) {
+      $effective['till_' . $key] = $cfg[$sourceKey];
+    }
+  }
+  return $effective;
+}
+
+$cfg = callback_till_effective_config($cfg, callback_payment_environment($pdo));
 $raw = file_get_contents('php://input') ?: '';
 $decoded = json_decode($raw, true);
 $body = is_array($decoded) ? $decoded : $_POST;

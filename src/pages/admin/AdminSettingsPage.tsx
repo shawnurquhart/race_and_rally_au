@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import AdminLayout from './AdminLayout';
 import { adminSettingsService, type AdminUploadSettings } from '@/services/adminSettingsService';
-import { adminSystemSettingsService, type SiteMode } from '@/services/adminSystemSettingsService';
+import { adminSystemSettingsService, type PaymentEnvironment, type SiteMode } from '@/services/adminSystemSettingsService';
 import { productService } from '@/services/productService';
 import { imageAssetService } from '@/services/imageAssetService';
 
@@ -21,9 +21,11 @@ const AdminSettingsPage: React.FC = () => {
   const [settingsMessage, setSettingsMessage] = useState('');
   const [contactFormMessage, setContactFormMessage] = useState('');
   const [siteModeMessage, setSiteModeMessage] = useState('');
+  const [paymentEnvironmentMessage, setPaymentEnvironmentMessage] = useState('');
   const [resetMessage, setResetMessage] = useState('');
   const [contactFormToEmail, setContactFormToEmail] = useState('manager@raceandrallyaustralia.com.au');
   const [siteMode, setSiteMode] = useState<SiteMode>('standard');
+  const [paymentEnvironment, setPaymentEnvironment] = useState<PaymentEnvironment>('production');
   const [contactSettingsLoading, setContactSettingsLoading] = useState(true);
   const [resetConfirmationInput, setResetConfirmationInput] = useState('');
   const [isResetting, setIsResetting] = useState(false);
@@ -39,8 +41,10 @@ const AdminSettingsPage: React.FC = () => {
       try {
         const email = await adminSystemSettingsService.getContactFormToEmail();
         const currentMode = await adminSystemSettingsService.getSiteMode();
+        const currentPaymentEnvironment = await adminSystemSettingsService.getPaymentEnvironment();
         setContactFormToEmail(email);
         setSiteMode(currentMode);
+        setPaymentEnvironment(currentPaymentEnvironment);
       } finally {
         setContactSettingsLoading(false);
       }
@@ -222,6 +226,16 @@ const AdminSettingsPage: React.FC = () => {
     }
   };
 
+  const onSavePaymentEnvironment = async () => {
+    try {
+      const saved = await adminSystemSettingsService.savePaymentEnvironment(paymentEnvironment);
+      setPaymentEnvironment(saved);
+      setPaymentEnvironmentMessage(`Payment gateway set to ${saved === 'sandbox' ? 'Sandbox / testing' : 'Production / live'}.`);
+    } catch {
+      setPaymentEnvironmentMessage('Unable to save payment gateway environment.');
+    }
+  };
+
   const onResetPiaaData = async () => {
     if (resetConfirmationInput.trim() !== RESET_CONFIRM_TEXT) {
       setResetMessage(`Type \"${RESET_CONFIRM_TEXT}\" exactly to enable full reset.`);
@@ -304,6 +318,41 @@ const AdminSettingsPage: React.FC = () => {
                 {contactSettingsLoading ? 'Loading...' : 'Save Contact Form Email'}
               </button>
               {contactFormMessage ? <p className="text-sm text-gray-300 mt-3">{contactFormMessage}</p> : null}
+            </div>
+          </div>
+        </div>
+
+        <div className="border border-gray-800 bg-gray-950 p-5">
+          <h2 className="text-xl font-heading font-bold mb-3">Payment Gateway Environment</h2>
+          <p className="text-sm text-gray-400 mb-5">
+            Choose whether checkout uses the Till/Nuvei production gateway for real payments or sandbox for testing.
+            Sandbox should only be used while running payment tests.
+          </p>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
+            <div>
+              <label className="block text-sm text-gray-300 mb-1" htmlFor="payment-environment-select">
+                Till/Nuvei gateway
+              </label>
+              <select
+                id="payment-environment-select"
+                className="w-full bg-black border border-gray-700 px-3 py-2"
+                value={paymentEnvironment}
+                disabled={contactSettingsLoading}
+                onChange={(event) => setPaymentEnvironment(event.target.value as PaymentEnvironment)}
+              >
+                <option value="production">Production / live payments</option>
+                <option value="sandbox">Sandbox / testing</option>
+              </select>
+              <p className={paymentEnvironment === 'sandbox' ? 'text-sm text-yellow-300 mt-2' : 'text-sm text-green-300 mt-2'}>
+                Current selection: {paymentEnvironment === 'sandbox' ? 'Sandbox testing gateway' : 'Production live gateway'}
+              </p>
+            </div>
+            <div>
+              <button onClick={() => void onSavePaymentEnvironment()} className="btn-primary" disabled={contactSettingsLoading}>
+                {contactSettingsLoading ? 'Loading...' : 'Save Payment Environment'}
+              </button>
+              {paymentEnvironmentMessage ? <p className="text-sm text-gray-300 mt-3">{paymentEnvironmentMessage}</p> : null}
             </div>
           </div>
         </div>

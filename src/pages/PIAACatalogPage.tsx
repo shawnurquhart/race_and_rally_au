@@ -19,6 +19,7 @@ const PIAACatalogPage: React.FC = () => {
   const [cartQuantities, setCartQuantities] = useState<Record<string, number>>({});
   const [cartItemCount, setCartItemCount] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [settings, setSettings] = useState(() => adminSettingsService.get());
   const [modalProductId, setModalProductId] = useState<string | null>(null);
   const [modalImageIndex, setModalImageIndex] = useState(0);
@@ -37,10 +38,19 @@ const PIAACatalogPage: React.FC = () => {
 
   const load = async () => {
     setLoading(true);
-    const loaded = await productService.list({ brand: 'piaa', isActive: true });
-    setProducts(loaded);
-    setSettings(adminSettingsService.get());
-    setLoading(false);
+    setLoadError(null);
+
+    try {
+      const loaded = await productService.list({ brand: 'piaa', isActive: true });
+      setProducts(loaded);
+      setSettings(adminSettingsService.get());
+    } catch (error) {
+      console.error('Failed to load PIAA catalog products', error);
+      setProducts([]);
+      setLoadError(error instanceof Error ? error.message : 'Unable to load products.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -74,7 +84,10 @@ const PIAACatalogPage: React.FC = () => {
     [products],
   );
 
-  const activeProducts = groupedProducts.find((group) => group.category === activeSection)?.products ?? [];
+  const activeProducts = useMemo(
+    () => groupedProducts.find((group) => group.category === activeSection)?.products ?? [],
+    [activeSection, groupedProducts],
+  );
 
   const folderNames = useMemo(() => {
     const folders = activeProducts
@@ -106,7 +119,8 @@ const PIAACatalogPage: React.FC = () => {
       products: visibleProducts.filter((product) => product.subCategory === subCategory),
     }));
 
-    const ungrouped = visibleProducts.filter((product) => !product.subCategory || !WIPER_SUBCATEGORIES.includes(product.subCategory as any));
+    const wiperSubCategories = new Set<string>(WIPER_SUBCATEGORIES);
+    const ungrouped = visibleProducts.filter((product) => !product.subCategory || !wiperSubCategories.has(product.subCategory));
     if (ungrouped.length > 0) {
       groups.push({ label: 'Other Wiper Blades', products: ungrouped });
     }
@@ -393,13 +407,24 @@ const PIAACatalogPage: React.FC = () => {
 
                   {loading && <p className="text-gray-400">Loading products...</p>}
 
-                  {!loading && visibleProducts.length === 0 && (
+                  {!loading && loadError && (
+                    <div className="bg-red-950/40 border border-red-800 p-6 rounded">
+                      <p className="text-red-200 font-semibold">Products could not be loaded.</p>
+                      <p className="text-red-100/80 text-sm mt-2">{loadError}</p>
+                      <button type="button" onClick={() => void load()} className="btn-secondary mt-4">
+                        Try again
+                      </button>
+                    </div>
+                  )}
+
+                  {!loading && !loadError && visibleProducts.length === 0 && (
                     <div className="bg-gray-800/50 border border-gray-700 p-6 rounded">
                       <p className="text-gray-400">No products published yet in {activeSection}.</p>
                     </div>
                   )}
 
                   {!loading &&
+                    !loadError &&
                     (activeSection === 'Wiper Blades'
                       ? visibleWiperGroups.map((group) => (
                           <div key={group.label} className="space-y-3 mb-5">
@@ -416,7 +441,7 @@ const PIAACatalogPage: React.FC = () => {
                       : visibleProducts.map((product) => renderProductCard(product)))}
                 </div>
 
-                {!loading && visibleProducts.length > 0 && (
+                {!loading && !loadError && visibleProducts.length > 0 && (
                   <div className="pt-2">
                     <button onClick={() => navigate('/cart')} className="btn-primary inline-flex items-center gap-2">
                       <ShoppingCart size={18} />

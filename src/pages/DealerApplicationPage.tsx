@@ -1,5 +1,7 @@
 import React from 'react';
-import { CheckCircle2, FileText, Send } from 'lucide-react';
+import { CheckCircle2, Download, FileText, Send } from 'lucide-react';
+import html2canvas from 'html2canvas';
+import { jsPDF } from 'jspdf';
 import { contactService } from '@/services/contactService';
 
 type DealerApplicationForm = {
@@ -110,9 +112,158 @@ const buildApplicationMessage = (form: DealerApplicationForm) =>
     `Current business registration attached/available: ${form.businessRegistrationAttached ? 'Yes' : 'No'}`,
   ].join('\n');
 
+const safeFileName = (value: string) =>
+  value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '') || 'dealer-application';
+
+const escapeHtml = (value: string) =>
+  value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+
+const pdfValue = (value: string) => escapeHtml(value.trim() || '');
+
+const pdfField = (label: string, value: string) => `
+  <div class="field">
+    <div class="field-label">${escapeHtml(label)}</div>
+    <div class="field-value">${pdfValue(value)}</div>
+  </div>
+`;
+
+const pdfTextarea = (label: string, value: string) => `
+  <div class="field field-wide">
+    <div class="field-label">${escapeHtml(label)}</div>
+    <div class="field-value textarea">${pdfValue(value).replace(/\n/g, '<br />')}</div>
+  </div>
+`;
+
+const buildPdfElement = (form: DealerApplicationForm): HTMLDivElement => {
+  const element = document.createElement('div');
+  element.style.position = 'fixed';
+  element.style.left = '-10000px';
+  element.style.top = '0';
+  element.style.width = '1120px';
+  element.style.background = '#000000';
+  element.style.color = '#ffffff';
+  element.style.fontFamily = 'Arial, Helvetica, sans-serif';
+  element.style.padding = '32px';
+  element.innerHTML = `
+    <style>
+      .pdf-form * { box-sizing: border-box; }
+      .pdf-form { background: #000; color: #fff; width: 1120px; font-family: Arial, Helvetica, sans-serif; }
+      .hero { border: 1px solid #1f2937; background: #111827; padding: 32px; margin-bottom: 24px; }
+      .eyebrow { color: #facc15; text-transform: uppercase; letter-spacing: 3px; font-size: 13px; margin-bottom: 10px; }
+      h1 { font-size: 42px; line-height: 1.05; margin: 0 0 12px; }
+      h2 { font-size: 24px; margin: 0 0 18px; }
+      p { color: #d1d5db; font-size: 17px; margin: 0; }
+      .grid-top { display: grid; grid-template-columns: 1fr 360px; gap: 24px; margin-bottom: 24px; }
+      .grid-two { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 24px; }
+      .grid-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+      .grid-three { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+      .grid-four { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+      .panel { background: #111827; border: 1px solid #1f2937; padding: 26px; margin-bottom: 24px; }
+      .panel.no-margin { margin-bottom: 0; }
+      .field-label { color: #e5e7eb; font-size: 13px; font-weight: 700; margin-bottom: 5px; }
+      .field-value { min-height: 36px; border: 1px solid #374151; background: #000; color: #fff; padding: 9px 10px; font-size: 15px; white-space: normal; overflow-wrap: break-word; }
+      .field-wide { grid-column: 1 / -1; }
+      .textarea { min-height: 88px; line-height: 1.35; }
+      .customer-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; border: 1px solid #1f2937; background: #000; padding: 12px 14px; margin-bottom: 10px; font-size: 15px; font-weight: 700; }
+      .box { width: 19px; height: 19px; border: 2px solid #e5e7eb; display: inline-flex; align-items: center; justify-content: center; color: #facc15; font-weight: 900; }
+      .doc-row { display: flex; gap: 12px; align-items: flex-start; color: #d1d5db; margin-bottom: 14px; font-size: 15px; }
+      .next-steps { border: 1px solid #1f2937; background: #000; padding: 16px; color: #d1d5db; font-size: 14px; }
+      .next-steps strong { color: #fff; display: block; margin-bottom: 8px; }
+      .next-steps ol { margin: 0; padding-left: 20px; }
+      .actions-note { margin-top: 18px; color: #facc15; font-size: 13px; }
+    </style>
+    <div class="pdf-form">
+      <div class="hero">
+        <div class="eyebrow">Dealer Network</div>
+        <h1>Dealer Application</h1>
+        <p>Complete the online application below.</p>
+      </div>
+
+      <div class="grid-top">
+        <div class="panel no-margin">
+          <h2>Business details</h2>
+          <div class="grid-fields">
+            ${pdfField('Date', form.date)}
+            ${pdfField('Country *', form.country)}
+            ${pdfField('Company *', form.company)}
+            ${pdfField('Contact *', form.contact)}
+            ${pdfField('Email *', form.email)}
+            ${pdfField('Phone', form.phone)}
+            ${pdfField('Mobile', form.mobile)}
+            ${pdfField('ABN or ACN', form.abnAcn)}
+            ${pdfTextarea('Address', form.address)}
+          </div>
+        </div>
+        <div class="panel no-margin">
+          <h2>Customer type</h2>
+          ${customerTypeOptions.map((type) => `<div class="customer-row"><span>${escapeHtml(type)}</span><span class="box">${form.customerTypes.includes(type) ? '✓' : ''}</span></div>`).join('')}
+          <div style="height: 14px"></div>
+          ${pdfField('R&R Account Manager', form.accountManager)}
+          ${pdfField('Owner Name', form.ownerName)}
+          ${pdfField('Owner Email', form.ownersEmail)}
+          ${pdfField('Owner Mobile', form.ownersMobile)}
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>Business profile</h2>
+        <div class="grid-three">
+          ${pdfField('Number of owned workshops', form.ownedWorkshops)}
+          ${pdfField('Trade customers, if wholesale', form.tradeCustomers)}
+          ${pdfField('Warehouses and locations', form.warehouses)}
+        </div>
+      </div>
+
+      <div class="grid-two">
+        <div class="panel no-margin">
+          <h2>Brands currently sold</h2>
+          ${pdfField('Driving lamps', form.drivingLampBrands)}
+          ${pdfField('Globes', form.globeBrands)}
+          ${pdfField('Horns', form.hornBrands)}
+        </div>
+        <div class="panel no-margin">
+          <h2>Notes and supported vehicles</h2>
+          ${pdfTextarea('Any other notes', form.notes)}
+          ${pdfTextarea('Main vehicles supported — manufacturer and model', form.vehiclesSupported)}
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>Current weekly volume and opportunity</h2>
+        <div class="grid-four" style="margin-bottom: 14px;">
+          ${pdfField('Driving lamps', form.drivingLampsVolume)}
+          ${pdfField('Globe sets', form.globeSetsVolume)}
+          ${pdfField('Horns', form.hornsVolume)}
+          ${pdfField('Wipers', form.wipersVolume)}
+        </div>
+        ${pdfTextarea('Areas of interest / opportunity', form.areasOfInterest)}
+      </div>
+
+      <div class="panel">
+        <h2>Documents and next steps</h2>
+        <div class="doc-row"><span class="box">${form.businessRegistrationAttached ? '✓' : ''}</span><span>Current business registration is attached or available to provide.</span></div>
+        <div class="doc-row"><span class="box">${form.consent ? '✓' : ''}</span><span>I confirm the information supplied is accurate and agree to be contacted by Race and Rally Australia about this application.</span></div>
+        <div class="next-steps"><strong>After approval:</strong><ol><li>Race and Rally Australia approval confirmation and confidential dealer price list will be sent.</li><li>Point-of-sale and promotional material may be provided with the first order.</li></ol></div>
+        <div class="actions-note">Generated from the online dealer application form.</div>
+      </div>
+    </div>
+  `;
+  return element;
+};
+
 const DealerApplicationPage: React.FC = () => {
   const [form, setForm] = React.useState<DealerApplicationForm>(initialForm);
   const [submitting, setSubmitting] = React.useState(false);
+  const [downloadingPdf, setDownloadingPdf] = React.useState(false);
   const [message, setMessage] = React.useState('');
 
   const updateField = <K extends keyof DealerApplicationForm>(field: K, value: DealerApplicationForm[K]) => {
@@ -154,6 +305,58 @@ const DealerApplicationPage: React.FC = () => {
     }
   };
 
+  const downloadPdf = async () => {
+    setDownloadingPdf(true);
+    setMessage('Preparing PDF download...');
+    const pdfElement = buildPdfElement(form);
+
+    try {
+      document.body.appendChild(pdfElement);
+      await new Promise((resolve) => window.setTimeout(resolve, 100));
+      const canvas = await html2canvas(pdfElement, {
+        backgroundColor: '#000000',
+        scale: 2,
+        useCORS: true,
+        logging: false,
+        windowWidth: pdfElement.scrollWidth,
+      });
+
+      const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
+      const margin = 8;
+      const pdfImageWidth = pageWidth - margin * 2;
+      const pdfPageContentHeight = pageHeight - margin * 2;
+      const canvasPageHeight = Math.floor((pdfPageContentHeight * canvas.width) / pdfImageWidth);
+      let sourceY = 0;
+      let pageIndex = 0;
+
+      while (sourceY < canvas.height) {
+        const sliceHeight = Math.min(canvasPageHeight, canvas.height - sourceY);
+        const pageCanvas = document.createElement('canvas');
+        pageCanvas.width = canvas.width;
+        pageCanvas.height = sliceHeight;
+        const context = pageCanvas.getContext('2d');
+        if (!context) throw new Error('Unable to prepare PDF canvas.');
+        context.drawImage(canvas, 0, sourceY, canvas.width, sliceHeight, 0, 0, canvas.width, sliceHeight);
+
+        if (pageIndex > 0) pdf.addPage();
+        const imageHeight = (sliceHeight * pdfImageWidth) / canvas.width;
+        pdf.addImage(pageCanvas.toDataURL('image/png'), 'PNG', margin, margin, pdfImageWidth, imageHeight);
+        sourceY += sliceHeight;
+        pageIndex += 1;
+      }
+
+      pdf.save(`${safeFileName(form.company || form.contact)}.pdf`);
+      setMessage('PDF downloaded.');
+    } catch {
+      setMessage('Unable to generate the PDF. Please try again.');
+    } finally {
+      pdfElement.remove();
+      setDownloadingPdf(false);
+    }
+  };
+
   const inputClass = 'w-full border border-gray-700 bg-black px-3 py-2 text-white outline-none focus:border-motorsport-yellow';
   const labelClass = 'text-sm font-semibold text-gray-200';
 
@@ -171,7 +374,7 @@ const DealerApplicationPage: React.FC = () => {
 
       <section className="section-padding">
         <div className="container-narrow px-4 md:px-6">
-          <form onSubmit={submit} className="space-y-8">
+          <form onSubmit={submit} className="space-y-8 bg-black">
             <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-6">
               <div className="bg-gray-900 border border-gray-800 p-6 md:p-8">
                 <div className="flex items-center gap-3 mb-6">
@@ -268,6 +471,9 @@ const DealerApplicationPage: React.FC = () => {
               <div className="flex flex-col sm:flex-row sm:items-center gap-4">
                 <button type="submit" disabled={submitting} className="btn-secondary inline-flex items-center justify-center gap-2 px-6 py-3 disabled:opacity-60">
                   {submitting ? 'Submitting...' : 'Submit application'} <Send size={18} />
+                </button>
+                <button type="button" onClick={() => void downloadPdf()} disabled={downloadingPdf} className="btn-secondary inline-flex items-center justify-center gap-2 px-6 py-3 disabled:opacity-60">
+                  {downloadingPdf ? 'Preparing PDF...' : 'Download PDF'} <Download size={18} />
                 </button>
                 {message ? <p className="inline-flex items-center gap-2 text-sm text-motorsport-yellow"><CheckCircle2 size={18} />{message}</p> : null}
               </div>

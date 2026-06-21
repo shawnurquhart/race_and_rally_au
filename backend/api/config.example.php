@@ -28,4 +28,15 @@ return [
   'till_error_url' => 'https://your-domain.example/checkout?payment=error',
   'till_auth_mode' => 'basic', // basic | none
   'till_enable_hmac' => false,
+
+  // Optional per-environment overrides used by the admin Payment Gateway Environment switch.
+  // If a value is omitted, the generic till_* value above is used.
+  'till_production_api_base_url' => 'https://gateway.tillpayments.com',
+  'till_sandbox_api_base_url' => 'https://test-gateway.tillpayments.com',
+  'till_sandbox_api_key' => 'your_sandbox_till_api_key',
+  'till_sandbox_api_username' => 'your_sandbox_api_username',
+  'till_sandbox_api_password' => 'your_sandbox_api_password',
+  'till_sandbox_shared_secret' => 'your_sandbox_shared_secret',
+  'till_sandbox_public_integration_key' => 'your_sandbox_public_integration_key',
+  'till_sandbox_merchant_id' => 'your_sandbox_merchant_id',
 ];

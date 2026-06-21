@@ -4,6 +4,48 @@ require __DIR__ . '/_bootstrap.php';
 $pdo = api_db();
 $cfg = require __DIR__ . '/config.php';
 
+function payment_environment(PDO $pdo): string {
+  try {
+    $stmt = $pdo->prepare('SELECT setting_value FROM app_settings WHERE setting_key = ? LIMIT 1');
+    $stmt->execute(['payment_environment']);
+    $row = $stmt->fetch();
+    return is_array($row) && ($row['setting_value'] ?? '') === 'sandbox' ? 'sandbox' : 'production';
+  } catch (Throwable $e) {
+    return 'production';
+  }
+}
+
+function till_effective_config(array $cfg, string $environment): array {
+  $effective = $cfg;
+  $prefix = $environment === 'sandbox' ? 'till_sandbox_' : 'till_production_';
+  $keys = [
+    'api_base_url',
+    'debit_path_template',
+    'api_key',
+    'api_username',
+    'api_password',
+    'shared_secret',
+    'public_integration_key',
+    'merchant_id',
+    'notification_url',
+    'success_url',
+    'cancel_url',
+    'error_url',
+    'auth_mode',
+    'enable_hmac',
+  ];
+
+  foreach ($keys as $key) {
+    $sourceKey = $prefix . $key;
+    if (array_key_exists($sourceKey, $cfg)) {
+      $effective['till_' . $key] = $cfg[$sourceKey];
+    }
+  }
+
+  $effective['payment_environment'] = $environment;
+  return $effective;
+}
+
 function payment_mask($value) {
   if (!is_string($value) || strlen($value) <= 8) return '***';
   return substr($value, 0, 4) . '...' . substr($value, -4);
@@ -40,6 +82,7 @@ function till_config_public(array $cfg): array {
   $apiKey = (string)($cfg['till_api_key'] ?? '');
   $pathTemplate = $cfg['till_debit_path_template'] ?? '/api/v3/transaction/{apiKey}/debit';
   return [
+    'environment' => $cfg['payment_environment'] ?? 'production',
     'configured' => !empty($cfg['till_api_key']) && !empty($cfg['till_shared_secret']),
     'apiBaseUrl' => $cfg['till_api_base_url'] ?? 'https://gateway.tillpayments.com',
     'debitPathTemplate' => $pathTemplate,
@@ -106,6 +149,8 @@ function till_extract_redirect_url($decoded): ?string {
 
 $payload = api_read_json();
 $action = $payload['action'] ?? '';
+$environment = payment_environment($pdo);
+$cfg = till_effective_config($cfg, $environment);
 
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {
   $stmt = $pdo->query('SELECT * FROM payment_logs ORDER BY id DESC LIMIT 50');
