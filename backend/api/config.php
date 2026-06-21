@@ -50,13 +50,14 @@ return [
   'till_sandbox_shared_secret' => 'tVqZTcmnEMLXlZa4H9490mfUJkBB5P8',
   'till_sandbox_public_integration_key' => 'gOukMikMVZL6WJ9rj4Ta',
   'till_sandbox_merchant_id' => '534930050029158',
-  'till_sandbox_notification_url' => 'https://gateway.tillpayments.com/postback/CO-a384-317e-5f45-ef18-1328-286f',
+  'till_sandbox_notification_url' => 'https://test-gateway.tillpayments.com/postback/CO-a384-317e-5f45-ef18-1328-286f',
   'till_sandbox_success_url' => 'https://raceandrallyaustralia.com.au/checkout?payment=success',
   'till_sandbox_cancel_url' => 'https://raceandrallyaustralia.com.au/checkout?payment=cancelled',
   'till_sandbox_error_url' => 'https://raceandrallyaustralia.com.au/checkout?payment=error',
   'till_sandbox_auth_mode' => 'basic',
   'till_sandbox_enable_hmac' => false,
 ];
+
 
 
 

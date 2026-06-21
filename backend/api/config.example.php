@@ -39,4 +39,5 @@ return [
   'till_sandbox_shared_secret' => 'your_sandbox_shared_secret',
   'till_sandbox_public_integration_key' => 'your_sandbox_public_integration_key',
   'till_sandbox_merchant_id' => 'your_sandbox_merchant_id',
+  'till_sandbox_notification_url' => 'https://test-gateway.tillpayments.com/postback/your-sandbox-postback-id',
 ];
