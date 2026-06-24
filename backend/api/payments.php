@@ -3,6 +3,14 @@ require __DIR__ . '/_bootstrap.php';
 
 $pdo = api_db();
 $cfg = require __DIR__ . '/config.php';
+$sessionKey = 'rra_admin_authenticated';
+
+function require_payment_admin(): void {
+  global $sessionKey;
+  if (empty($_SESSION[$sessionKey])) {
+    api_response(['ok' => false, 'error' => 'Unauthorized'], 401);
+  }
+}
 
 function payment_environment(PDO $pdo): string {
   try {
@@ -46,9 +54,99 @@ function till_effective_config(array $cfg, string $environment): array {
   return $effective;
 }
 
+function payment_config_setting_key(string $environment): string {
+  return 'payment_config_' . ($environment === 'sandbox' ? 'sandbox' : 'production');
+}
+
+function payment_config_editable_keys(): array {
+  return [
+    'api_base_url',
+    'debit_path_template',
+    'api_key',
+    'api_username',
+    'api_password',
+    'shared_secret',
+    'public_integration_key',
+    'merchant_id',
+    'notification_url',
+    'success_url',
+    'cancel_url',
+    'error_url',
+    'auth_mode',
+    'enable_hmac',
+  ];
+}
+
+function payment_load_saved_config(PDO $pdo, string $environment): array {
+  try {
+    $stmt = $pdo->prepare('SELECT setting_value FROM app_settings WHERE setting_key = ? LIMIT 1');
+    $stmt->execute([payment_config_setting_key($environment)]);
+    $row = $stmt->fetch();
+    $decoded = is_array($row) ? json_decode((string)($row['setting_value'] ?? ''), true) : null;
+    return is_array($decoded) ? $decoded : [];
+  } catch (Throwable $e) {
+    return [];
+  }
+}
+
+function payment_apply_saved_config(array $cfg, array $saved): array {
+  $configProtectedKeys = [
+    'api_key' => true,
+    'api_username' => true,
+    'api_password' => true,
+    'shared_secret' => true,
+    'public_integration_key' => true,
+  ];
+  foreach (payment_config_editable_keys() as $key) {
+    // Credentials should come from config.php when present so stale DB overrides
+    // cannot silently beat a freshly deployed secure server config.
+    if (isset($configProtectedKeys[$key]) && trim((string)($cfg['till_' . $key] ?? '')) !== '') {
+      continue;
+    }
+    if (array_key_exists($key, $saved)) {
+      $cfg['till_' . $key] = $saved[$key];
+    }
+  }
+  return $cfg;
+}
+
+function payment_save_config(PDO $pdo, string $environment, array $incoming, array $currentSaved): array {
+  $next = $currentSaved;
+  foreach (payment_config_editable_keys() as $key) {
+    if (!array_key_exists($key, $incoming)) continue;
+    if (in_array($key, ['api_key', 'api_password', 'shared_secret'], true) && trim((string)$incoming[$key]) === '') {
+      continue;
+    }
+    if ($key === 'enable_hmac') {
+      $next[$key] = !empty($incoming[$key]);
+    } else {
+      $next[$key] = trim((string)$incoming[$key]);
+    }
+  }
+
+  $stmt = $pdo->prepare(
+    'INSERT INTO app_settings (setting_key, setting_value, updated_at)
+     VALUES (?, ?, ?)
+     ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value), updated_at = VALUES(updated_at)'
+  );
+  $stmt->execute([payment_config_setting_key($environment), payment_json($next), date('c')]);
+  return $next;
+}
+
 function payment_mask($value) {
   if (!is_string($value) || strlen($value) <= 8) return '***';
   return substr($value, 0, 4) . '...' . substr($value, -4);
+}
+
+function payment_mask_header(string $header): string {
+  if (stripos($header, 'Authorization: Basic ') === 0) return 'Authorization: Basic ***';
+  foreach (['X-API-Key:', 'X-Public-Integration-Key:', 'X-Signature:'] as $prefix) {
+    if (stripos($header, $prefix) === 0) {
+      $value = trim(substr($header, strlen($prefix)));
+      return $prefix . ' ' . payment_mask($value);
+    }
+  }
+  return $header;
 }
 
 function payment_json($value) {
@@ -80,6 +178,8 @@ function payment_log(PDO $pdo, array $entry): void {
 
 function till_config_public(array $cfg): array {
   $apiKey = (string)($cfg['till_api_key'] ?? '');
+  $sharedSecret = (string)($cfg['till_shared_secret'] ?? '');
+  $apiPassword = (string)($cfg['till_api_password'] ?? '');
   $pathTemplate = $cfg['till_debit_path_template'] ?? '/api/v3/transaction/{apiKey}/debit';
   return [
     'environment' => $cfg['payment_environment'] ?? 'production',
@@ -88,7 +188,17 @@ function till_config_public(array $cfg): array {
     'debitPathTemplate' => $pathTemplate,
     'attemptedEndpointMasked' => rtrim((string)($cfg['till_api_base_url'] ?? 'https://gateway.tillpayments.com'), '/') . str_replace('{apiKey}', payment_mask($apiKey), $pathTemplate),
     'merchantId' => $cfg['till_merchant_id'] ?? '',
+    'apiKey' => '',
     'apiKeyMasked' => !empty($cfg['till_api_key']) ? payment_mask($cfg['till_api_key']) : '',
+    'apiKeySet' => $apiKey !== '',
+    'apiUsername' => $cfg['till_api_username'] ?? '',
+    'apiPassword' => '',
+    'apiPasswordMasked' => $apiPassword !== '' ? payment_mask($apiPassword) : '',
+    'apiPasswordSet' => $apiPassword !== '',
+    'sharedSecret' => '',
+    'sharedSecretMasked' => $sharedSecret !== '' ? payment_mask($sharedSecret) : '',
+    'sharedSecretSet' => $sharedSecret !== '',
+    'publicIntegrationKey' => $cfg['till_public_integration_key'] ?? '',
     'authMode' => $cfg['till_auth_mode'] ?? 'basic',
     'hmacEnabled' => !empty($cfg['till_enable_hmac']),
     'notificationUrl' => $cfg['till_notification_url'] ?? '',
@@ -100,35 +210,36 @@ function till_config_public(array $cfg): array {
 
 function till_build_payload(array $payload, array $cfg): array {
   $amount = number_format((float)($payload['amount'] ?? 0), 2, '.', '');
-  $merchantReference = trim((string)($payload['merchantReference'] ?? ''));
+  $merchantReference = trim((string)($payload['merchantTransactionId'] ?? ($payload['merchantReference'] ?? '')));
+  $merchantMetaData = substr((string)($payload['merchantMetaData'] ?? ('source=race-and-rally-australia|testMode=' . (!empty($payload['testMode']) ? 'true' : 'false'))), 0, 255);
+  $allowTestOverrides = !empty($payload['testMode']) || stripos($merchantMetaData, 'testMode=true') !== false;
   if ($merchantReference === '') {
     $merchantReference = 'RRA-' . date('YmdHis') . '-' . random_int(1000, 9999);
   }
   $customer = is_array($payload['customer'] ?? null) ? $payload['customer'] : [];
+  $defaultCallbackUrl = 'https://raceandrallyaustralia.com.au/api/till/postback';
 
   return [
     'merchantTransactionId' => $merchantReference,
-    'reference' => $merchantReference,
     'amount' => $amount,
     'currency' => strtoupper((string)($payload['currency'] ?? 'AUD')),
     'description' => (string)($payload['description'] ?? 'Race & Rally Australia order ' . $merchantReference),
-    'merchantId' => $cfg['till_merchant_id'] ?? '',
-    'successUrl' => $cfg['till_success_url'] ?? '',
-    'cancelUrl' => $cfg['till_cancel_url'] ?? '',
-    'errorUrl' => $cfg['till_error_url'] ?? '',
-    'notificationUrl' => $cfg['till_notification_url'] ?? '',
+    'successUrl' => $allowTestOverrides ? (string)($payload['successUrl'] ?? ($cfg['till_success_url'] ?? '')) : ($cfg['till_success_url'] ?? ''),
+    'cancelUrl' => $allowTestOverrides ? (string)($payload['cancelUrl'] ?? ($cfg['till_cancel_url'] ?? '')) : ($cfg['till_cancel_url'] ?? ''),
+    'errorUrl' => $allowTestOverrides ? (string)($payload['errorUrl'] ?? ($cfg['till_error_url'] ?? '')) : ($cfg['till_error_url'] ?? ''),
+    'callbackUrl' => $allowTestOverrides ? (string)($payload['callbackUrl'] ?? $defaultCallbackUrl) : $defaultCallbackUrl,
     'customer' => [
       'firstName' => $customer['firstName'] ?? '',
       'lastName' => $customer['lastName'] ?? '',
       'email' => $customer['email'] ?? '',
-      'phone' => $customer['phone'] ?? '',
-      'billingAddress1' => $customer['address'] ?? '',
+      'billingPhone' => $customer['billingPhone'] ?? ($customer['phone'] ?? ''),
+      'billingAddress1' => $customer['billingAddress1'] ?? ($customer['address'] ?? ''),
+      'billingCity' => $customer['billingCity'] ?? '',
+      'billingState' => $customer['billingState'] ?? '',
+      'billingPostcode' => $customer['billingPostcode'] ?? '',
+      'billingCountry' => $customer['billingCountry'] ?? 'AU',
     ],
-    'metadata' => [
-      'source' => 'race-and-rally-australia',
-      'orderId' => $payload['orderId'] ?? null,
-      'testMode' => !empty($payload['testMode']),
-    ],
+    'merchantMetaData' => $merchantMetaData,
   ];
 }
 
@@ -151,10 +262,21 @@ $payload = api_read_json();
 $action = $payload['action'] ?? '';
 $environment = payment_environment($pdo);
 $cfg = till_effective_config($cfg, $environment);
+$cfg = payment_apply_saved_config($cfg, payment_load_saved_config($pdo, $environment));
 
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {
   $stmt = $pdo->query('SELECT * FROM payment_logs ORDER BY id DESC LIMIT 50');
   api_response(['ok' => true, 'config' => till_config_public($cfg), 'logs' => $stmt->fetchAll()]);
+}
+
+if ($action === 'savePaymentConfig') {
+  require_payment_admin();
+  $incomingEnvironment = ($payload['environment'] ?? $environment) === 'sandbox' ? 'sandbox' : 'production';
+  $baseCfg = till_effective_config(require __DIR__ . '/config.php', $incomingEnvironment);
+  $currentSaved = payment_load_saved_config($pdo, $incomingEnvironment);
+  $saved = payment_save_config($pdo, $incomingEnvironment, is_array($payload['config'] ?? null) ? $payload['config'] : [], $currentSaved);
+  $nextCfg = payment_apply_saved_config($baseCfg, $saved);
+  api_response(['ok' => true, 'config' => till_config_public($nextCfg)]);
 }
 
 if ($action === 'createTillPayment') {
@@ -171,20 +293,33 @@ if ($action === 'createTillPayment') {
   $urlMasked = $baseUrl . str_replace('{apiKey}', payment_mask($apiKey), $pathTemplate);
 
   $headers = ['Content-Type: application/json', 'Accept: application/json'];
-  if (($cfg['till_auth_mode'] ?? 'basic') === 'basic' && !empty($cfg['till_api_username']) && !empty($cfg['till_api_password'])) {
+  $body = payment_json($requestPayload);
+  $authMode = (string)($cfg['till_auth_mode'] ?? 'basic');
+  if ($authMode === 'basic' && !empty($cfg['till_api_username']) && !empty($cfg['till_api_password'])) {
     $headers[] = 'Authorization: Basic ' . base64_encode($cfg['till_api_username'] . ':' . $cfg['till_api_password']);
   }
-  if (!empty($cfg['till_enable_hmac']) && !empty($cfg['till_shared_secret'])) {
-    $body = payment_json($requestPayload);
+  if ($authMode === 'public_hmac') {
+    if (!empty($cfg['till_api_key'])) {
+      $headers[] = 'X-API-Key: ' . (string)$cfg['till_api_key'];
+    }
+    if (!empty($cfg['till_public_integration_key'])) {
+      $headers[] = 'X-Public-Integration-Key: ' . (string)$cfg['till_public_integration_key'];
+    }
+    if (!empty($cfg['till_shared_secret'])) {
+      $headers[] = 'X-Signature: ' . hash_hmac('sha256', $body, (string)$cfg['till_shared_secret']);
+      $headers[] = 'X-Signature-Algorithm: HMAC-SHA256';
+    }
+  } elseif (!empty($cfg['till_enable_hmac']) && !empty($cfg['till_shared_secret'])) {
     $headers[] = 'X-Signature: ' . hash_hmac('sha256', $body, (string)$cfg['till_shared_secret']);
   }
+  $maskedHeaders = array_map('payment_mask_header', $headers);
 
   $ch = curl_init($url);
   curl_setopt_array($ch, [
     CURLOPT_RETURNTRANSFER => true,
     CURLOPT_POST => true,
     CURLOPT_HTTPHEADER => $headers,
-    CURLOPT_POSTFIELDS => payment_json($requestPayload),
+    CURLOPT_POSTFIELDS => $body,
     CURLOPT_TIMEOUT => 30,
   ]);
   $raw = curl_exec($ch);
@@ -198,11 +333,11 @@ if ($action === 'createTillPayment') {
 
   payment_log($pdo, [
     'action' => 'createTillPayment',
-    'orderId' => $requestPayload['metadata']['orderId'] ?? null,
+    'orderId' => $payload['payment']['orderId'] ?? null,
     'merchantReference' => $merchantReference,
     'statusCode' => $status,
     'request' => $requestPayload,
-    'response' => ['attemptedEndpoint' => $urlMasked, 'body' => $responsePayload],
+    'response' => ['attemptedEndpoint' => $urlMasked, 'requestHeaders' => $maskedHeaders, 'authMode' => $authMode, 'body' => $responsePayload],
     'redirectUrl' => $redirectUrl,
     'error' => $curlError ?: null,
   ]);
@@ -213,6 +348,8 @@ if ($action === 'createTillPayment') {
     'merchantReference' => $merchantReference,
     'redirectUrl' => $redirectUrl,
     'attemptedEndpoint' => $urlMasked,
+    'authMode' => $authMode,
+    'requestHeaders' => $maskedHeaders,
     'requestPayload' => $requestPayload,
     'responsePayload' => $responsePayload,
     'error' => $curlError ?: null,

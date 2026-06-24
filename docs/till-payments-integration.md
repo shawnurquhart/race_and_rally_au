@@ -20,6 +20,8 @@ Till notifications
 2. Checkout validates customer/shipping details.
 3. `Proceed to Payment` calls `backend/api/payments.php` via `src/services/tillPayments.ts`.
 4. Backend builds a Till request and calls `/api/v3/transaction/{apiKey}/debit`.
+   - For sandbox this remains `https://test-gateway.tillpayments.com/api/v3/transaction/{API_KEY}/debit`.
+   - The API key belongs in the URL path placeholder, not in the JSON request body.
 5. If Till returns a redirect URL, the browser redirects to the hosted gateway.
 6. Fulfilment remains manual/pending until payment status is verified.
 
@@ -83,6 +85,13 @@ Features:
 - View raw response payload.
 - Open returned redirect URL, if present.
 - View recent payment logs.
+- Add a local-only `$1.00` Widget 1 test product to checkout.
+- Edit the exact sandbox payment payload JSON before submitting a test request.
+- Submit the edited sandbox JSON directly from the `Current Sandbox Payload Config` panel.
+- Save the editable sandbox payload in browser local storage under `rra_sandbox_payment_payload_v1`.
+- Paste or review the latest gateway response in a sandbox response textarea.
+
+The Till debit JSON emitted by `backend/api/payments.php` intentionally excludes invalid root fields such as `reference`, `merchantId`, `notificationUrl`, and `metadata`. It uses `merchantTransactionId`, `callbackUrl`, and optional string `merchantMetaData` instead. For safety, backend return/callback URL overrides are only honoured for explicit test payloads, including sandbox metadata containing `testMode=true`. Normal checkout uses server-side configured values.
 
 ## Assumptions / unknowns
 

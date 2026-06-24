@@ -42,3 +42,10 @@ Last updated: 2026-04-29 (AEST)
   - Clicking the main product image now opens large modal
   - Uses the same `Product Modal - display size` admin setting
   - Includes close button and next/previous navigation for multi-image galleries
+- 2026-06-22: Recovered after session crash during Till/Nuvei sandbox payment testing work.
+  - Build passed via `npm run build`.
+  - Because the build script includes `deploy:cpanel:auto`, the latest frontend assets and `backend/api/payments.php` were deployed to cPanel during validation.
+  - Admin Payment Testing now includes an editable sandbox payload JSON area and sandbox response notes/JSON area.
+  - Backend payment payload builder allows merchant/return/notification URL overrides only when `testMode` is true.
+  - Removed a UTF-8 BOM from `src/pages/admin/AdminPaymentTestingPage.tsx` and reverted local deploy-manifest noise.
+  - Left `temp-storage-dev-work/till-gateway-doc.html` as an untracked local Till gateway documentation reference.
